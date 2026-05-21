@@ -47,4 +47,39 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
- 
+    title: 'GitaPath — Bhagavad Gita Learning',
+    description: 'Ancient wisdom, modern journey. 700 verses, Sanskrit audio, guided path.',
+  },
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} ${playfair.variable} ${devanagari.variable} font-sans antialiased`}
+      >
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </ThemeProvider>
+        </SessionProvider>
+      </body>
+    </html>
+  );
+}
