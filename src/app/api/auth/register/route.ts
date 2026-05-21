@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
     }) as { id: string; name: string; email: string };
 
     return NextResponse.json({ user }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: 'Internal server error', detail: msg }, { status: 500 });
   }
 }
