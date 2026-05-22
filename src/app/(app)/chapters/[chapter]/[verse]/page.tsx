@@ -7,14 +7,35 @@ interface PageProps {
   params: { chapter: string; verse: string };
 }
 
-// Placeholder verse data — replaced with DB fetch in Day 20
+// Chapter metadata with correct verse counts
+const CHAPTER_META: Record<number, { title: string; verseCount: number }> = {
+  1:  { title: 'Arjuna Vishada Yoga',           verseCount: 47 },
+  2:  { title: 'Sankhya Yoga',                  verseCount: 72 },
+  3:  { title: 'Karma Yoga',                    verseCount: 43 },
+  4:  { title: 'Jnana Karma Sanyasa Yoga',      verseCount: 42 },
+  5:  { title: 'Karma Sanyasa Yoga',            verseCount: 29 },
+  6:  { title: 'Dhyana Yoga',                   verseCount: 47 },
+  7:  { title: 'Gyana Vigyana Yoga',            verseCount: 30 },
+  8:  { title: 'Aksara Brahma Yoga',            verseCount: 28 },
+  9:  { title: 'Raja Vidya Raja Guhya Yoga',    verseCount: 34 },
+  10: { title: 'Vibhuti Yoga',                  verseCount: 42 },
+  11: { title: 'Vishvarupa Darshana Yoga',      verseCount: 55 },
+  12: { title: 'Bhakti Yoga',                   verseCount: 20 },
+  13: { title: 'Kshetra Kshetrajna Vibhaga Yoga', verseCount: 35 },
+  14: { title: 'Gunatraya Vibhaga Yoga',        verseCount: 27 },
+  15: { title: 'Purushottama Yoga',             verseCount: 20 },
+  16: { title: 'Daivasura Sampad Vibhaga Yoga', verseCount: 24 },
+  17: { title: 'Shraddhatraya Vibhaga Yoga',    verseCount: 28 },
+  18: { title: 'Moksha Sanyasa Yoga',           verseCount: 78 },
+};
+
+// Placeholder verse data — replaced with DB fetch in Phase 4
 function getVerseData(chapter: number, verse: number) {
   const famous: Record<string, {
     sanskrit: string; transliteration: string; translation: string;
-    commentary: string; chapterTitle: string; totalVerses: number;
+    commentary: string | null;
   }> = {
     '2-47': {
-      chapterTitle: 'Sankhya Yoga', totalVerses: 72,
       sanskrit: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि॥',
       transliteration: 'karmaṇy-evādhikāras te mā phaleṣu kadācana\nmā karma-phala-hetur bhūr mā te saṅgo \'stv akarmaṇi',
       translation: 'You have a right to perform your prescribed duties, but you are not entitled to the fruits of your actions. Never consider yourself the cause of the results of your activities, and never be attached to not doing your duty.',
@@ -22,18 +43,20 @@ function getVerseData(chapter: number, verse: number) {
     },
   };
 
-  const key = `${chapter}-${verse}`;
-  if (famous[key]) return { ...famous[key], chapter, verse };
+  const meta = CHAPTER_META[chapter];
+  const chapterTitle = meta?.title ?? `Chapter ${chapter}`;
+  const totalVerses = meta?.verseCount ?? 1;
 
-  // Generic placeholder
+  const key = `${chapter}-${verse}`;
+  if (famous[key]) return { ...famous[key], chapter, verse, chapterTitle, totalVerses };
+
+  // Generic placeholder for verses without content yet
   return {
-    chapter, verse,
-    chapterTitle: `Chapter ${chapter}`,
-    totalVerses: 72,
+    chapter, verse, chapterTitle, totalVerses,
     sanskrit: `[Sanskrit text — Chapter ${chapter}, Verse ${verse}]`,
     transliteration: `[Transliteration — ${chapter}.${verse}]`,
     translation: `[Translation placeholder — Chapter ${chapter}, Verse ${verse}. Full content will be added in Phase 4.]`,
-    commentary: null as string | null,
+    commentary: null,
   };
 }
 
