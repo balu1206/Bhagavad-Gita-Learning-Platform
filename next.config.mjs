@@ -9,6 +9,11 @@ const nextConfig = {
     // Already verified clean with tsc --noEmit; keep this false to catch regressions.
     ignoreBuildErrors: false,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+    ],
+  },
 };
 
 export default nextConfig;
