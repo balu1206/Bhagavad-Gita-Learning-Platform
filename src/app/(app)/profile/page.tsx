@@ -33,21 +33,21 @@ interface ProfileData {
 
 type Tab = 'overview' | 'activity' | 'achievements' | 'settings';
 
-// ─── Static fallback ──────────────────────────────────────────────────────────
+// ─── Default placeholder ──────────────────────────────────────────────────────
 
-const STATIC_PROFILE: ProfileData = {
-  name: 'Bhaskar',
-  email: 'balu.svb000@gmail.com',
-  createdAt: '2026-05-01T00:00:00Z',
-  totalXp: 650,
-  level: 3,
-  currentStreak: 12,
-  longestStreak: 21,
-  versesRead: 127,
-  chaptersStarted: 3,
-  bookmarksCount: 18,
-  journeyStepsCompleted: 2,
-  achievementsCount: 4,
+const DEFAULT_PROFILE: ProfileData = {
+  name: 'Seeker',
+  email: '',
+  createdAt: new Date().toISOString(),
+  totalXp: 0,
+  level: 1,
+  currentStreak: 0,
+  longestStreak: 0,
+  versesRead: 0,
+  chaptersStarted: 0,
+  bookmarksCount: 0,
+  journeyStepsCompleted: 0,
+  achievementsCount: 0,
 };
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
@@ -217,16 +217,29 @@ function ActivityTab({ userId }: { userId?: string }) {
 
 function AchievementsTab() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/achievements')
       .then((r) => r.json())
-      .then((d) => Array.isArray(d) && setAchievements(d))
-      .catch(() => {});
+      .then((d) => {
+        if (Array.isArray(d)) setAchievements(d);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
   }, []);
 
   const unlocked = achievements.filter((a) => !!a.unlockedAt);
   const locked = achievements.filter((a) => !a.unlockedAt);
+
+  if (!loaded) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-warm-200 border-t-saffron-500" />
+        <p className="text-warm-400">Loading achievements…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -266,7 +279,7 @@ function AchievementsTab() {
       {achievements.length === 0 && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <Trophy className="h-10 w-10 text-warm-300" />
-          <p className="text-warm-400">Loading achievements…</p>
+          <p className="text-warm-400">No achievements yet. Keep learning!</p>
         </div>
       )}
     </div>
@@ -283,7 +296,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<ProfileData>(STATIC_PROFILE);
+  const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   useEffect(() => {
