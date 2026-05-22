@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { Bell, Search } from 'lucide-react';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
@@ -11,6 +12,9 @@ interface HeaderProps {
 }
 
 export function Header({ title, className }: HeaderProps) {
+  const { data: session } = useSession();
+  const userName = session?.user?.name ?? 'Seeker';
+
   return (
     <header
       className={cn(
@@ -47,7 +51,7 @@ export function Header({ title, className }: HeaderProps) {
           aria-label="Open profile menu"
           className="ml-1 rounded-full focus-visible:ring-2 focus-visible:ring-saffron-500 focus-visible:ring-offset-2 focus:outline-none"
         >
-          <Avatar size="sm" name="User" />
+          <Avatar size="sm" name={userName} />
         </button>
       </div>
     </header>
