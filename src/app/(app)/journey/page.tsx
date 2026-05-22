@@ -280,8 +280,13 @@ export default function JourneyPage() {
         const res = await fetch('/api/journey/progress');
         if (res.ok) {
           const data = await res.json();
-          setSteps(data.steps);
-          setStats(data.stats);
+          if (data.steps && data.steps.length > 0) {
+            setSteps(data.steps);
+            setStats(data.stats);
+          } else {
+            // Fallback: show static data with first step unlocked if API returns empty
+            buildStaticSteps(0);
+          }
         } else {
           // Fallback: show static data with first step unlocked
           buildStaticSteps(0);
