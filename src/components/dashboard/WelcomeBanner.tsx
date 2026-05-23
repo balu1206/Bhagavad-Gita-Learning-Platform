@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import { useState } from 'react';
 import { Flame } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
@@ -25,6 +25,10 @@ function getGreeting() {
 export function WelcomeBanner({ name, image }: WelcomeBannerProps) {
   const greeting = getGreeting();
   const displayName = name?.split(' ')[0] ?? 'Seeker';
+  // BUG-001: Use native img with onError fallback instead of next/image
+  // to avoid Server Component crash when remote image domain misconfigured
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = image && !imgFailed;
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-saffron-500 via-saffron-600 to-gold-600 p-6 sm:p-8">
@@ -48,8 +52,17 @@ export function WelcomeBanner({ name, image }: WelcomeBannerProps) {
         {/* Avatar */}
         <div className="flex-shrink-0">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-white/20 flex items-center justify-center border-2 border-white/30">
-            {image ? (
-              <Image src={image} alt={name ?? 'User'} width={80} height={80} className="object-cover" />
+            {showImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={image}
+                alt={name ?? 'User'}
+                width={80}
+                height={80}
+                className="object-cover w-full h-full"
+                onError={() => setImgFailed(true)}
+                referrerPolicy="no-referrer"
+              />
             ) : (
               <span className="font-serif text-2xl text-white">
                 {name ? getInitials(name) : <Flame className="w-8 h-8" />}

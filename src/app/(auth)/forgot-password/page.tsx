@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 
@@ -27,8 +27,9 @@ export default function ForgotPasswordPage() {
     resolver: zodResolver(schema),
   });
 
+  // ISSUE-018: Forgot password is not fully implemented yet — show
+  // confirmation screen but be transparent that email isn't sent in this build.
   const onSubmit = async (data: FormData) => {
-    // Placeholder: In Phase 7+ we'll implement actual email sending
     await new Promise((r) => setTimeout(r, 800));
     setSubmittedEmail(data.email);
     setSubmitted(true);
@@ -76,6 +77,14 @@ export default function ForgotPasswordPage() {
         <p className="text-dark-500 dark:text-dark-400">
           Enter your email and we&apos;ll send you reset instructions.
         </p>
+      </div>
+
+      {/* ISSUE-018: Honest "coming soon" notice */}
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-saffron-200 bg-saffron-50 p-3 text-sm text-saffron-800 dark:border-saffron-800 dark:bg-saffron-950/30 dark:text-saffron-300">
+        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <span>
+          Email-based password reset is launching soon. For now, please contact support if you&apos;ve lost access to your account.
+        </span>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

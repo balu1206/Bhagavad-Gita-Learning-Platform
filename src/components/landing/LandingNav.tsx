@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Flame, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { Logo } from '@/components/shared/Logo';
 
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -25,22 +26,18 @@ export function LandingNav() {
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-[1030] transition-all duration-300',
+        // DS-006: Backdrop blur applied always for consistent frosted-glass nav
+        'fixed top-0 left-0 right-0 z-[1030] transition-all duration-300 backdrop-blur-lg',
         scrolled
-          ? 'bg-white/90 dark:bg-dark-900/90 backdrop-blur-md shadow-soft border-b border-warm-100 dark:border-dark-800'
-          : 'bg-transparent',
+          ? 'bg-warm-50/80 dark:bg-dark-900/80 shadow-soft border-b border-warm-100 dark:border-dark-800'
+          : 'bg-white/40 dark:bg-dark-900/40',
       )}
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 focus-visible:ring-2 focus-visible:ring-saffron-500 rounded-lg focus:outline-none">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Flame className="h-4 w-4 text-white" aria-hidden="true" />
-            </div>
-            <span className="font-serif font-bold text-dark-900 dark:text-dark-100 text-lg">
-              Gita Learning
-            </span>
+          {/* Logo — DS-002 / ISSUE-020: Use canonical Logo component */}
+          <Link href="/" className="focus-visible:ring-2 focus-visible:ring-saffron-500 rounded-lg focus:outline-none">
+            <Logo size="md" />
           </Link>
 
           {/* Desktop nav */}
@@ -59,10 +56,16 @@ export function LandingNav() {
           {/* Desktop actions */}
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/login" className="btn-ghost h-9 px-4 text-sm rounded-lg inline-flex items-center">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-saffron-700 dark:text-saffron-300 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
+            >
               Sign In
             </Link>
-            <Link href="/register" className="btn-primary h-9 px-4 text-sm rounded-lg inline-flex items-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all duration-200"
+            >
               Get Started
             </Link>
           </div>
@@ -97,10 +100,16 @@ export function LandingNav() {
               </a>
             ))}
             <div className="mt-3 pt-3 border-t border-warm-100 dark:border-dark-800 flex flex-col gap-2">
-              <Link href="/login" className="btn-ghost h-10 px-4 text-sm rounded-lg inline-flex items-center justify-center">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm font-medium text-saffron-700 dark:text-saffron-300 border border-saffron-200 dark:border-saffron-800 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
+              >
                 Sign In
               </Link>
-              <Link href="/register" className="btn-primary h-10 px-4 text-sm rounded-lg inline-flex items-center justify-center">
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large transition-all"
+              >
                 Get Started Free
               </Link>
             </div>

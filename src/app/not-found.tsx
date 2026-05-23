@@ -7,22 +7,24 @@ export default function NotFound() {
       <h1 className="mb-2 text-3xl font-bold text-dark-900 dark:text-warm-50">
         Page not found
       </h1>
-      <p className="mb-2 text-warm-500">
+      {/* ISSUE-009: Improved contrast for body text (was warm-500/400, too light) */}
+      <p className="mb-2 text-dark-700 dark:text-warm-200">
         As Krishna says in Chapter 2, some things simply do not exist.
       </p>
-      <p className="mb-8 text-sm italic text-warm-400">
-        "That which does not exist can never come to be." — 2.16
+      <p className="mb-8 text-sm italic text-dark-600 dark:text-warm-300">
+        &ldquo;That which does not exist can never come to be.&rdquo; — 2.16
       </p>
       <div className="flex gap-3">
         <Link
           href="/"
-          className="rounded-xl bg-gradient-to-r from-saffron-500 to-saffron-600 px-6 py-3 text-sm font-medium text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all"
+          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-saffron-500 to-gold-500 px-6 py-3 text-sm font-medium text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all"
         >
           Go home
         </Link>
+        {/* ISSUE-010: Fixed secondary CTA — was white-on-white in light mode */}
         <Link
           href="/chapters"
-          className="rounded-xl border border-warm-200 px-6 py-3 text-sm font-medium text-warm-600 hover:bg-warm-100 dark:border-dark-700 dark:text-warm-400 transition-all"
+          className="inline-flex items-center justify-center rounded-xl border-2 border-saffron-500 bg-white px-6 py-3 text-sm font-medium text-saffron-600 hover:bg-saffron-50 dark:bg-dark-850 dark:text-saffron-400 dark:hover:bg-saffron-950/30 transition-colors"
         >
           Browse chapters
         </Link>

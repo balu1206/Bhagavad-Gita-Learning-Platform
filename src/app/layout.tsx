@@ -5,29 +5,33 @@ import { ThemeProvider } from '@/components/shared/ThemeProvider/ThemeProvider';
 import { ToastProvider } from '@/components/ui/Toast/Toast';
 import { SessionProvider } from '@/components/shared/SessionProvider/SessionProvider';
 
+// ISSUE-015: All fonts use display:swap + preload to avoid FOIT
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+  preload: true,
 });
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
   display: 'swap',
+  preload: true,
 });
 
 const devanagari = Noto_Serif_Devanagari({
   subsets: ['devanagari'],
   variable: '--font-sanskrit',
   display: 'swap',
+  preload: true,
   weight: ['400', '600'],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: 'GitaPath — Ancient Wisdom, Modern Journey',
-    template: '%s | GitaPath',
+    default: 'Gita Learning — Ancient Wisdom, Modern Journey',
+    template: '%s | Gita Learning',
   },
   description:
     'Explore the Bhagavad Gita through immersive reading, Sanskrit audio, and a guided beginner journey. 700 verses, 18 chapters, 8-step learning path.',
@@ -35,19 +39,19 @@ export const metadata: Metadata = {
     'Bhagavad Gita', 'Sanskrit', 'spirituality', 'Hinduism',
     'yoga', 'meditation', 'dharma', 'karma', 'learning', 'Krishna', 'Arjuna',
   ],
-  authors: [{ name: 'GitaPath' }],
-  creator: 'GitaPath',
-  metadataBase: new URL('https://gitapath.vercel.app'),
+  authors: [{ name: 'Gita Learning' }],
+  creator: 'Gita Learning',
+  metadataBase: new URL('https://bhagavad-gita-learning-platform.vercel.app'),
   openGraph: {
-    title: 'GitaPath — Bhagavad Gita Learning',
+    title: 'Gita Learning — Ancient Wisdom, Modern Journey',
     description: 'A guided journey through the Bhagavad Gita with Sanskrit audio, bookmarks, and personalised learning paths.',
     type: 'website',
     locale: 'en_US',
-    siteName: 'GitaPath',
+    siteName: 'Gita Learning',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GitaPath — Bhagavad Gita Learning',
+    title: 'Gita Learning — Ancient Wisdom, Modern Journey',
     description: 'Ancient wisdom, modern journey. 700 verses, Sanskrit audio, guided path.',
   },
   manifest: '/manifest.json',

@@ -5,7 +5,7 @@ import { ArrowRight, BookOpen, Headphones, Sparkles } from 'lucide-react';
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 bg-white dark:bg-dark-900">
       {/* Gradient orbs */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-saffron-500/10 blur-3xl animate-pulse-soft" />
@@ -42,14 +42,14 @@ export function HeroSection() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16 animate-slide-up">
           <Link
             href="/register"
-            className="btn-primary inline-flex items-center gap-2 h-12 px-8 rounded-xl text-base shadow-glow hover:shadow-glow-lg"
+            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all duration-200"
           >
             Begin for Free
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
           <Link
             href="/chapters"
-            className="btn-ghost inline-flex items-center gap-2 h-12 px-8 rounded-xl text-base"
+            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-medium border-2 border-saffron-500 text-saffron-600 dark:text-saffron-400 bg-white dark:bg-dark-850 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             Browse Verses
