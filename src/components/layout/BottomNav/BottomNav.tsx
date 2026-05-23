@@ -5,10 +5,11 @@ import { NAV_ITEMS } from '@/lib/constants';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User,
+  LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings,
 } from 'lucide-react';
 
-const iconMap = { LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User } as const;
+// DS-001: Settings added so the BottomNav iconMap stays in sync with NAV_ITEMS
+const iconMap = { LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings } as const;
 
 // Show only the most important 5 items on mobile
 const MOBILE_NAV = NAV_ITEMS.slice(0, 5);
@@ -20,9 +21,10 @@ export function BottomNav() {
     <nav
       aria-label="Mobile navigation"
       className={cn(
-        'md:hidden fixed bottom-0 left-0 right-0 z-[1030]',
+        // DS-007: Show bottom nav below the lg breakpoint (1024px) per spec
+        'lg:hidden fixed bottom-0 left-0 right-0 z-[1030]',
         'flex border-t border-warm-100 dark:border-dark-700',
-        'bg-white/95 dark:bg-dark-900/95 backdrop-blur-md',
+        'bg-warm-50/80 dark:bg-dark-900/80 backdrop-blur-lg',
         'safe-area-inset-bottom',
       )}
     >

@@ -25,7 +25,8 @@ export function AppShell({ children, title, showHeader = true, className }: AppS
           id="main-content"
           className={cn(
             'flex-1 overflow-auto',
-            'pb-20 md:pb-0', // space for mobile bottom nav
+            // DS-007: Bottom nav now shows below lg, so reserve space until lg
+            'pb-20 lg:pb-0',
             className,
           )}
         >

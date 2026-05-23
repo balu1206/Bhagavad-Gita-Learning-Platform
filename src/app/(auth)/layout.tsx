@@ -4,7 +4,7 @@ import { Flame } from 'lucide-react';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-warm-50 dark:bg-dark-900">
       {/* Left panel — decorative */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-saffron-500 via-saffron-600 to-gold-700 flex-col items-center justify-center p-12">
         {/* Orbs */}
@@ -30,15 +30,15 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </p>
 
           <p className="text-white/80 leading-relaxed text-lg">
-            Join thousands of seekers exploring the Bhagavad Gita through immersive reading, guided audio, and a structured learning journey.
+            Explore the Bhagavad Gita through immersive reading, guided audio, and a structured learning journey.
           </p>
 
-          {/* Stats */}
+          {/* Stats — ISSUE-019: Removed fake "5K+ Seekers" placeholder */}
           <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-8">
             {[
               { value: '700', label: 'Verses' },
               { value: '18', label: 'Chapters' },
-              { value: '5K+', label: 'Seekers' },
+              { value: '8', label: 'Journey Steps' },
             ].map(({ value, label }) => (
               <div key={label}>
                 <div className="font-serif text-3xl text-white">{value}</div>
@@ -50,24 +50,24 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-warm-50 dark:bg-dark-900 text-dark-900 dark:text-dark-100">
         {/* Mobile logo */}
         <div className="lg:hidden p-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-saffron-500 to-gold-500 flex items-center justify-center">
               <Flame className="w-4 h-4 text-white" />
             </div>
-            <span className="font-serif text-xl text-dark-900 dark:text-white">Gita Learning</span>
+            <span className="font-serif text-xl text-dark-900 dark:text-warm-50">Gita Learning</span>
           </Link>
         </div>
 
         {/* Desktop logo */}
         <div className="hidden lg:block p-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-saffron-500 to-gold-500 flex items-center justify-center">
               <Flame className="w-4 h-4 text-white" />
             </div>
-            <span className="font-serif text-xl text-dark-900 dark:text-white">Gita Learning</span>
+            <span className="font-serif text-xl text-dark-900 dark:text-warm-50">Gita Learning</span>
           </Link>
         </div>
 

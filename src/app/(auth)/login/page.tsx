@@ -7,7 +7,7 @@ import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Mail, Lock, Globe } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Mail, Lock, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { useToast } from '@/components/ui/Toast/Toast';
@@ -24,6 +24,8 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  // BUG-004: Add visible error state on the form itself, not just toast
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const {
     register,
@@ -34,17 +36,31 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    const result = await signIn('credentials', {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    });
+    setAuthError(null);
 
-    if (result?.error) {
-      toast({ variant: 'error', message: 'Login failed', description: 'Invalid email or password. Please try again.' });
-    } else {
+    try {
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      // BUG-004: Handle all failure modes — error, !ok, undefined result
+      if (!result || result.error || !result.ok) {
+        const msg = 'Invalid email or password. Please try again.';
+        setAuthError(msg);
+        toast({ variant: 'error', message: 'Login failed', description: msg });
+        return;
+      }
+
       toast({ variant: 'success', message: 'Welcome back!' });
       router.push('/dashboard');
+      router.refresh();
+    } catch (err) {
+      console.error('[Login] Sign-in error:', err);
+      const msg = 'Something went wrong. Please try again in a moment.';
+      setAuthError(msg);
+      toast({ variant: 'error', message: 'Sign-in error', description: msg });
     }
   };
 
@@ -83,7 +99,7 @@ export default function LoginPage() {
           <div className="w-full border-t border-warm-200 dark:border-dark-700" />
         </div>
         <div className="relative flex justify-center">
-          <span className="px-4 bg-white dark:bg-dark-950 text-dark-400 text-sm">
+          <span className="px-4 bg-warm-50 dark:bg-dark-900 text-dark-400 text-sm">
             or continue with email
           </span>
         </div>
@@ -91,6 +107,17 @@ export default function LoginPage() {
 
       {/* Email form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {/* BUG-004: Visible auth error display */}
+        {authError && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+          >
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{authError}</span>
+          </div>
+        )}
+
         <Input
           label="Email address"
           type="email"

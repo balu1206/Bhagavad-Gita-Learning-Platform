@@ -22,7 +22,7 @@ const CHAPTER_META: Record<number, { title: string; titleSanskrit: string; summa
   10: { title: 'Vibhuti Yoga',                  titleSanskrit: 'विभूति योग',             summary: 'The divine glory — how Krishna permeates all of creation.',    verseCount: 42 },
   11: { title: 'Vishvarupa Darshana Yoga',      titleSanskrit: 'विश्वरूप दर्शन योग',     summary: 'Arjuna beholds the awe-inspiring cosmic form of Krishna.',     verseCount: 55 },
   12: { title: 'Bhakti Yoga',                   titleSanskrit: 'भक्ति योग',              summary: 'Pure love and devotion — the highest and most direct path.',   verseCount: 20 },
-  13: { title: 'Kshetra Kshetrajna Vibhaga Yoga', titleSanskrit: 'क्षेत्र क्षेत्रज्ञ विभाग योग', summary: 'The body (field) and the soul (the eternal knower).', verseCount: 35 },
+  13: { title: 'Kshetra Kshetrajna Vibhaga Yoga', titleSanskrit: 'क्षेत्र क्षेत्रज्ञ विभाग योग', summary: 'The body (field) and the soul (the eternal knower).', verseCount: 34 },
   14: { title: 'Gunatraya Vibhaga Yoga',        titleSanskrit: 'गुणत्रय विभाग योग',      summary: 'Tamas, rajas, sattva — the three qualities and transcendence.', verseCount: 27 },
   15: { title: 'Purushottama Yoga',             titleSanskrit: 'पुरुषोत्तम योग',         summary: 'The supreme person — beyond creation, the transcendent divine.', verseCount: 20 },
   16: { title: 'Daivasura Sampad Vibhaga Yoga', titleSanskrit: 'दैवासुर सम्पद् विभाग योग', summary: 'Divine and demoniac qualities — what leads to liberation.',  verseCount: 24 },

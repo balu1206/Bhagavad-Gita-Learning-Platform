@@ -1,6 +1,6 @@
 {
-  "name": "GitaPath — Bhagavad Gita Learning",
-  "short_name": "GitaPath",
+  "name": "Gita Learning — Bhagavad Gita Learning Platform",
+  "short_name": "Gita Learning",
   "description": "A guided journey through the Bhagavad Gita with Sanskrit audio, bookmarks, and personalised learning paths.",
   "start_url": "/",
   "display": "standalone",

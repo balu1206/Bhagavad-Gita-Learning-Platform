@@ -62,7 +62,8 @@ export function VerseDisplay({
         </div>
 
         <div className="bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border border-warm-200 dark:border-dark-700">
-          <p className="font-sanskrit text-xl sm:text-2xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
+          {/* DS-005: Sanskrit size bumped to spec (20px mobile / 24px desktop) */}
+          <p className="font-sanskrit text-xl sm:text-2xl md:text-3xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
             {sanskrit}
           </p>
 

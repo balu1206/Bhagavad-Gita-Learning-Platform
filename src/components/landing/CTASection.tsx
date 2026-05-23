@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 
 export function CTASection() {
   return (
-    <section className="py-24 relative overflow-hidden">
+    <section className="py-16 md:py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-saffron-500 via-saffron-600 to-gold-600" />
       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5" />
@@ -37,7 +37,7 @@ export function CTASection() {
 
         {/* Body */}
         <p className="text-white/90 text-lg sm:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-          Join thousands of seekers who have found clarity, purpose, and inner peace through the timeless wisdom of the Bhagavad Gita.
+          Begin a daily practice with timeless wisdom — find clarity, purpose, and inner peace through the Bhagavad Gita.
         </p>
 
         {/* CTAs */}

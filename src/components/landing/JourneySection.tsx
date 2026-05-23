@@ -11,7 +11,7 @@ const steps = [
 
 export function JourneySection() {
   return (
-    <section id="journey" className="py-24 px-4 sm:px-6">
+    <section id="journey" className="py-16 md:py-24 px-4 sm:px-6 bg-white dark:bg-dark-900">
       <div className="mx-auto max-w-6xl">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: text */}

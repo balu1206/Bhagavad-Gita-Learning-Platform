@@ -21,7 +21,7 @@ const CHAPTER_META: Record<number, { title: string; verseCount: number }> = {
   10: { title: 'Vibhuti Yoga',                  verseCount: 42 },
   11: { title: 'Vishvarupa Darshana Yoga',      verseCount: 55 },
   12: { title: 'Bhakti Yoga',                   verseCount: 20 },
-  13: { title: 'Kshetra Kshetrajna Vibhaga Yoga', verseCount: 35 },
+  13: { title: 'Kshetra Kshetrajna Vibhaga Yoga', verseCount: 34 },
   14: { title: 'Gunatraya Vibhaga Yoga',        verseCount: 27 },
   15: { title: 'Purushottama Yoga',             verseCount: 20 },
   16: { title: 'Daivasura Sampad Vibhaga Yoga', verseCount: 24 },
