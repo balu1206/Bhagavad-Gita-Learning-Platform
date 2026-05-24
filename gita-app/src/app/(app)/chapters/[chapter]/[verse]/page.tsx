@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ReadingShell } from '@/components/reader/ReadingShell';
 import { VerseDisplay } from '@/components/reader/VerseDisplay';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 interface PageProps {
   params: { chapter: string; verse: string };
@@ -58,10 +58,14 @@ export default async function VersePage({ params }: PageProps) {
       verse={v}
       totalVerses={verse.chapter.verseCount}
       chapterTitle={verse.chapter.title}
+      verseId={verse.id}
+      chapterId={verse.chapterId}
     >
       <VerseDisplay
         chapter={ch}
         verse={v}
+        verseId={verse.id}
+        chapterId={verse.chapterId}
         sanskrit={verse.sanskrit}
         transliteration={verse.transliteration}
         translation={verse.translation}
