@@ -1,5 +1,8 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '../Sidebar';
 import { BottomNav } from '../BottomNav';
 import { Header } from '../Header';
@@ -11,7 +14,27 @@ interface AppShellProps {
   className?: string;
 }
 
+// Reader (verse) routes own their full-screen chrome via ReadingShell.
+// AppShell suppresses its own Header/Sidebar/BottomNav on those pages to
+// avoid double-stacking + z-index conflicts.
+function isReaderRoute(pathname: string): boolean {
+  // Matches /chapters/<n>/<m> where both are numeric (a specific verse)
+  return /^\/chapters\/\d+\/\d+(\/|$)/.test(pathname);
+}
+
 export function AppShell({ children, title, showHeader = true, className }: AppShellProps) {
+  const pathname = usePathname() ?? '';
+  const readerMode = isReaderRoute(pathname);
+
+  // In reader mode, render only the children — ReadingShell provides all chrome.
+  if (readerMode) {
+    return (
+      <div className="min-h-screen bg-warm-50 dark:bg-dark-900">
+        <main id="main-content">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-warm-50 dark:bg-dark-900">
       {/* Desktop Sidebar */}

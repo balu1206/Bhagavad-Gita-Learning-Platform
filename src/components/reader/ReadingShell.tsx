@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -21,19 +21,30 @@ interface ReadingShellProps {
 export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, children }: ReadingShellProps) {
   const router = useRouter();
   const [headerVisible, setHeaderVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [bookmarked, setBookmarked] = useState(false);
+  // PERF FIX: Track lastScrollY via ref so the scroll-listener effect doesn't
+  // re-subscribe on every scroll event (each setLastScrollY would otherwise
+  // tear down + reattach the listener — major jank on long scrolls).
+  const lastScrollYRef = useRef(0);
+  const tickingRef = useRef(false);
 
-  // Collapse header on scroll down, reveal on scroll up
+  // Collapse header on scroll down, reveal on scroll up.
+  // Uses requestAnimationFrame throttling for smooth 60fps without thrashing.
   useEffect(() => {
     const onScroll = () => {
-      const y = window.scrollY;
-      setHeaderVisible(y < lastScrollY || y < 60);
-      setLastScrollY(y);
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const lastY = lastScrollYRef.current;
+        setHeaderVisible(y < lastY || y < 60);
+        lastScrollYRef.current = y;
+        tickingRef.current = false;
+      });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [lastScrollY]);
+  }, []); // Empty deps — listener mounts once, ref reads stay current
 
   // Keyboard navigation
   useEffect(() => {
@@ -63,7 +74,7 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
     <div className="min-h-screen bg-white dark:bg-dark-950 flex flex-col">
       {/* ── Collapsible top header ── */}
       <header className={cn(
-        'fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm',
+        'fixed top-0 left-0 right-0 z-[1040] bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm',
         'border-b border-warm-100 dark:border-dark-800 transition-transform duration-300',
         headerVisible ? 'translate-y-0' : '-translate-y-full',
       )}>
@@ -132,7 +143,7 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
       </main>
 
       {/* ── Sticky bottom nav ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm border-t border-warm-100 dark:border-dark-800">
+      <nav className="fixed bottom-0 left-0 right-0 z-[1040] bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm border-t border-warm-100 dark:border-dark-800">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           {/* Prev */}
           <Link
