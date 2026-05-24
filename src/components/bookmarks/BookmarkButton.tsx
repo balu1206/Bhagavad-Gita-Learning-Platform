@@ -40,12 +40,8 @@ export function BookmarkButton({
           body:    JSON.stringify({ verseId, chapterId }),
         });
       } else {
-        // Find and delete — simplified: POST with delete flag
-        // In production, store bookmarkId from initial fetch
-        await fetch('/api/bookmarks', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ verseId, chapterId, _delete: true }),
+        await fetch(`/api/bookmarks?verseId=${encodeURIComponent(verseId)}`, {
+          method: 'DELETE',
         });
       }
     } catch {

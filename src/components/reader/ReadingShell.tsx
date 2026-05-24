@@ -1,35 +1,57 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, BookOpen, Settings,
-  X, ArrowLeft, Bookmark, Share2,
+  X, ArrowLeft, Share2, Check, Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
+import { useToast } from '@/components/ui/Toast/Toast';
 
 interface ReadingShellProps {
   chapter: number;
   verse: number;
   totalVerses: number;
   chapterTitle: string;
+  verseId: string;
+  chapterId: string;
   children: ReactNode;
 }
 
-export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, children }: ReadingShellProps) {
+type FontSize = 'sm' | 'md' | 'lg';
+
+const FONT_SIZE_KEY = 'gita-reading-font-size';
+
+export function ReadingShell({
+  chapter, verse, totalVerses, chapterTitle, verseId, chapterId, children,
+}: ReadingShellProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [headerVisible, setHeaderVisible] = useState(true);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fontSize, setFontSize] = useState<FontSize>('md');
+  const [shareSuccess, setShareSuccess] = useState(false);
   // PERF FIX: Track lastScrollY via ref so the scroll-listener effect doesn't
-  // re-subscribe on every scroll event (each setLastScrollY would otherwise
-  // tear down + reattach the listener — major jank on long scrolls).
+  // re-subscribe on every scroll event.
   const lastScrollYRef = useRef(0);
   const tickingRef = useRef(false);
 
+  // Load persisted font size on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(FONT_SIZE_KEY) as FontSize | null;
+    if (saved && ['sm', 'md', 'lg'].includes(saved)) setFontSize(saved);
+  }, []);
+
+  const saveFontSize = useCallback((size: FontSize) => {
+    setFontSize(size);
+    localStorage.setItem(FONT_SIZE_KEY, size);
+  }, []);
+
   // Collapse header on scroll down, reveal on scroll up.
-  // Uses requestAnimationFrame throttling for smooth 60fps without thrashing.
   useEffect(() => {
     const onScroll = () => {
       if (tickingRef.current) return;
@@ -44,7 +66,7 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []); // Empty deps — listener mounts once, ref reads stay current
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -56,10 +78,34 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
       if (e.key === 'ArrowLeft' || e.key === 'h') {
         if (verse > 1) router.push(`/chapters/${chapter}/${verse - 1}`);
       }
+      if (e.key === 'Escape') setSettingsOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [chapter, verse, totalVerses, router]);
+
+  const handleShare = useCallback(async () => {
+    const url  = window.location.href;
+    const text = `Bhagavad Gita ${chapter}.${verse} — ${chapterTitle}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: text, url });
+        return;
+      } catch {
+        // User cancelled or API unavailable — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareSuccess(true);
+      toast({ message: 'Link copied!', description: url, variant: 'success' });
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch {
+      toast({ message: 'Could not copy link', variant: 'error' });
+    }
+  }, [chapter, verse, chapterTitle, toast]);
 
   const prevHref = verse > 1 ? `/chapters/${chapter}/${verse - 1}` : `/chapters/${chapter}`;
   const nextHref = verse < totalVerses
@@ -70,8 +116,10 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
 
   const progress = Math.round((verse / totalVerses) * 100);
 
+  const fontSizeClass = fontSize === 'sm' ? 'text-sm' : fontSize === 'lg' ? 'text-lg' : '';
+
   return (
-    <div className="min-h-screen bg-white dark:bg-dark-950 flex flex-col">
+    <div className={cn('min-h-screen bg-white dark:bg-dark-950 flex flex-col', fontSizeClass)}>
       {/* ── Collapsible top header ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-[1040] bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm',
@@ -99,27 +147,29 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
 
           {/* Actions */}
           <div className="flex items-center gap-1">
+            <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
             <button
-              onClick={() => setBookmarked((b) => !b)}
+              onClick={handleShare}
               className={cn(
                 'p-2 rounded-lg transition-colors',
-                bookmarked
+                shareSuccess
+                  ? 'text-green-500 bg-green-50 dark:bg-green-900/20'
+                  : 'text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-warm-100 dark:hover:bg-dark-800',
+              )}
+              aria-label="Share verse"
+            >
+              {shareSuccess ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setSettingsOpen((o) => !o)}
+              className={cn(
+                'p-2 rounded-lg transition-colors',
+                settingsOpen
                   ? 'text-saffron-500 bg-saffron-50 dark:bg-saffron-900/20'
                   : 'text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-warm-100 dark:hover:bg-dark-800',
               )}
-              aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
-            >
-              <Bookmark className="w-4 h-4" fill={bookmarked ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              className="p-2 rounded-lg text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-warm-100 dark:hover:bg-dark-800 transition-colors"
-              aria-label="Share verse"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-            <button
-              className="p-2 rounded-lg text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-warm-100 dark:hover:bg-dark-800 transition-colors"
               aria-label="Reading settings"
+              aria-expanded={settingsOpen}
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -134,6 +184,52 @@ export function ReadingShell({ chapter, verse, totalVerses, chapterTitle, childr
           />
         </div>
       </header>
+
+      {/* ── Reading settings panel ── */}
+      {settingsOpen && (
+        <div className="fixed top-[57px] right-4 z-[1050] w-72 bg-white dark:bg-dark-900 border border-warm-200 dark:border-dark-700 rounded-xl shadow-large p-4 animate-slide-up">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dark-800 dark:text-dark-100">Reading Settings</h3>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="p-1 rounded text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Font size */}
+          <div>
+            <p className="text-xs text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <Type className="w-3.5 h-3.5" /> Font Size
+            </p>
+            <div className="flex gap-2">
+              {(['sm', 'md', 'lg'] as FontSize[]).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => saveFontSize(size)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
+                    fontSize === size
+                      ? 'bg-saffron-500 text-white border-saffron-500'
+                      : 'border-warm-200 dark:border-dark-700 text-dark-500 dark:text-dark-400 hover:border-saffron-300',
+                  )}
+                >
+                  {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop for settings panel */}
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-[1045]"
+          onClick={() => setSettingsOpen(false)}
+        />
+      )}
 
       {/* ── Main content ── */}
       <main className="flex-1 pt-16 pb-24">

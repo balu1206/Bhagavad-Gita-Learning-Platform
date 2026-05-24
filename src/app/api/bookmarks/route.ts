@@ -55,6 +55,21 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ bookmarks });
 }
 
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const userId = (session.user as { id?: string }).id;
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const verseId = searchParams.get('verseId');
+  if (!verseId) return NextResponse.json({ error: 'verseId required' }, { status: 400 });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (prisma.bookmark as any).deleteMany({ where: { userId, verseId } });
+  return NextResponse.json({ success: true });
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

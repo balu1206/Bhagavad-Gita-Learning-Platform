@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Volume2, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Volume2, ChevronDown, ChevronUp, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
+import { useToast } from '@/components/ui/Toast/Toast';
+import { getAudioTrack } from '@/lib/audioManifest';
 
 interface VerseDisplayProps {
   chapter: number;
@@ -19,8 +21,31 @@ interface VerseDisplayProps {
 export function VerseDisplay({
   chapter, verse, verseId, chapterId, sanskrit, transliteration, translation, commentary,
 }: VerseDisplayProps) {
+  const { toast } = useToast();
   const [showTransliteration, setShowTransliteration] = useState(true);
   const [commentaryOpen, setCommentaryOpen] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+
+  const handlePlayAudio = useCallback(async () => {
+    if (audioLoading) return;
+    setAudioLoading(true);
+    try {
+      const track = getAudioTrack(chapter, verse);
+      if (!track.audioUrl || track.audioUrl.startsWith('[')) {
+        throw new Error('Audio not available');
+      }
+      // Audio URL is valid — delegate to the listen page for full player experience
+      window.location.href = `/listen?chapter=${chapter}&verse=${verse}`;
+    } catch {
+      toast({
+        message: 'Audio not available for this verse',
+        description: 'Audio files are coming soon.',
+        variant: 'warning',
+      });
+    } finally {
+      setAudioLoading(false);
+    }
+  }, [chapter, verse, audioLoading, toast]);
 
   return (
     <article className="space-y-8 animate-fade-in">
@@ -49,11 +74,16 @@ export function VerseDisplay({
               {showTransliteration ? 'Hide' : 'Show'} transliteration
             </button>
             <button
-              className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors"
-              aria-label="Play audio"
+              onClick={handlePlayAudio}
+              disabled={audioLoading}
+              className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors disabled:opacity-60"
+              aria-label={audioLoading ? 'Loading audio…' : 'Play audio'}
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              Play
+              {audioLoading
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Volume2 className="w-3.5 h-3.5" />
+              }
+              {audioLoading ? 'Loading…' : 'Play'}
             </button>
             {verseId && chapterId && (
               <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
