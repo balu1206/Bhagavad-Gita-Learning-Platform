@@ -13,6 +13,8 @@ import { formatDuration } from '@/lib/utils';
 
 // Pages where the mini player should stay hidden
 const HIDDEN_PATHS = ['/', '/login', '/register', '/forgot-password'];
+// Verse reader pages: /chapters/<n>/<m> — they have their own bottom nav
+const isReaderRoute = (p: string) => /^\/chapters\/\d+\/\d+(\/|$)/.test(p);
 
 export function MiniPlayer() {
   const pathname = usePathname();
@@ -23,6 +25,7 @@ export function MiniPlayer() {
     !store.isMiniPlayerVisible ||
     !store.currentTrack ||
     HIDDEN_PATHS.includes(pathname) ||
+    isReaderRoute(pathname) ||
     store.isFullPlayerOpen;
 
   // Scrub by clicking the progress bar

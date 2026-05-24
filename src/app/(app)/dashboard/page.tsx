@@ -11,17 +11,17 @@ import { RecommendedScroller } from '@/components/dashboard/RecommendedScroller'
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
-// BUG-001: Dashboard server component error fix
-// Added null-safety, error logging, and safe defaults for user data
-export default async function DashboardPage() {
-  let session;
-  try {
-    session = await getServerSession(authOptions);
-  } catch (error) {
-    console.error('[Dashboard] Failed to fetch session:', error);
-    redirect('/login');
-  }
+// BUG-001 (fix #2): Auth pages MUST be dynamic. The earlier try/catch was
+// catching Next.js's internal "Dynamic server usage" signal (a special throw
+// that propagates up to mark the page as dynamic) and treating it as a real
+// error — which caused every dashboard visit to redirect to /login.
+//
+// Correct pattern: let getServerSession() throw freely, and mark the route
+// explicitly dynamic so the framework doesn't try to prerender it at build time.
+export const dynamic = 'force-dynamic';
 
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
   if (!session) redirect('/login');
 
   // Safe defaults for new users with no profile data
