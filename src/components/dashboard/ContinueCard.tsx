@@ -6,8 +6,10 @@ import { ProgressBar } from '@/components/ui/ProgressBar/ProgressBar';
 
 export function ContinueCard() {
   // Placeholder data — real data fetched from DB in Phase 3 Day 20
-  const lastVerse = { chapter: 2, verse: 47, chapterTitle: 'Sankhya Yoga' };
+  // verse is the last COMPLETED verse; Continue Reading navigates to the next unread one.
+  const lastVerse = { chapter: 2, verse: 47, chapterTitle: 'Sankhya Yoga', totalVerses: 72 };
   const chapterProgress = 65; // percent
+  const nextVerse = Math.min(lastVerse.verse + 1, lastVerse.totalVerses);
 
   return (
     <Card variant="elevated" className="p-6">
@@ -49,7 +51,7 @@ export function ContinueCard() {
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Link href={`/chapters/${lastVerse.chapter}/${lastVerse.verse}`} className="flex-1">
+        <Link href={`/chapters/${lastVerse.chapter}/${nextVerse}`} className="flex-1">
           <Button fullWidth>
             <BookOpen className="w-4 h-4" />
             Continue Reading

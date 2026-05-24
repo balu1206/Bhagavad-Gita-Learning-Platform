@@ -98,7 +98,7 @@ export function MiniPlayer() {
         <div className="hidden sm:flex items-center gap-1 text-xs text-dark-400 dark:text-dark-500 tabular-nums flex-shrink-0">
           <span>{formatDuration(store.currentTime)}</span>
           <span>/</span>
-          <span>{store.duration > 0 ? formatDuration(store.duration) : '--:--'}</span>
+          <span>{formatDuration(store.duration)}</span>
         </div>
 
         {/* Controls */}
