@@ -1,3 +1,12 @@
+'use client';
+
+// BUG-001 (real root cause): Card needs `'use client'` because the interactive
+// variant attaches an onKeyDown function handler. Without this directive, when
+// Card is rendered inside a Server Component (e.g. the dashboard via
+// RecommendedScroller), Next.js can't serialize the function reference across
+// the server→client boundary and throws "Event handlers cannot be passed to
+// Client Component props" — surfacing in production as digest 2464001999.
+
 import { cn } from '@/lib/utils';
 import type { HTMLAttributes } from 'react';
 
