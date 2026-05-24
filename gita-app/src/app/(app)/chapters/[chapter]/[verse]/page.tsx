@@ -58,8 +58,6 @@ export default async function VersePage({ params }: PageProps) {
       verse={v}
       totalVerses={verse.chapter.verseCount}
       chapterTitle={verse.chapter.title}
-      verseId={verse.id}
-      chapterId={verse.chapterId}
     >
       <VerseDisplay
         chapter={ch}

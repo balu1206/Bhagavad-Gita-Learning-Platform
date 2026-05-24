@@ -9,7 +9,6 @@ import {
   X, ArrowLeft, Share2, Check, Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
 import { useToast } from '@/components/ui/Toast/Toast';
 
 interface ReadingShellProps {
@@ -17,8 +16,6 @@ interface ReadingShellProps {
   verse: number;
   totalVerses: number;
   chapterTitle: string;
-  verseId: string;
-  chapterId: string;
   children: ReactNode;
 }
 
@@ -27,7 +24,7 @@ type FontSize = 'sm' | 'md' | 'lg';
 const FONT_SIZE_KEY = 'gita-reading-font-size';
 
 export function ReadingShell({
-  chapter, verse, totalVerses, chapterTitle, verseId, chapterId, children,
+  chapter, verse, totalVerses, chapterTitle, children,
 }: ReadingShellProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -35,12 +32,9 @@ export function ReadingShell({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>('md');
   const [shareSuccess, setShareSuccess] = useState(false);
-  // PERF FIX: Track lastScrollY via ref so the scroll-listener effect doesn't
-  // re-subscribe on every scroll event.
   const lastScrollYRef = useRef(0);
   const tickingRef = useRef(false);
 
-  // Load persisted font size on mount
   useEffect(() => {
     const saved = localStorage.getItem(FONT_SIZE_KEY) as FontSize | null;
     if (saved && ['sm', 'md', 'lg'].includes(saved)) setFontSize(saved);
@@ -51,7 +45,6 @@ export function ReadingShell({
     localStorage.setItem(FONT_SIZE_KEY, size);
   }, []);
 
-  // Collapse header on scroll down, reveal on scroll up.
   useEffect(() => {
     const onScroll = () => {
       if (tickingRef.current) return;
@@ -68,7 +61,6 @@ export function ReadingShell({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -93,7 +85,7 @@ export function ReadingShell({
         await navigator.share({ title: text, url });
         return;
       } catch {
-        // User cancelled or API unavailable — fall through to clipboard
+        // fall through to clipboard
       }
     }
 
@@ -115,19 +107,16 @@ export function ReadingShell({
     : null;
 
   const progress = Math.round((verse / totalVerses) * 100);
-
   const fontSizeClass = fontSize === 'sm' ? 'text-sm' : fontSize === 'lg' ? 'text-lg' : '';
 
   return (
     <div className={cn('min-h-screen bg-white dark:bg-dark-950 flex flex-col', fontSizeClass)}>
-      {/* ── Collapsible top header ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-[1040] bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm',
         'border-b border-warm-100 dark:border-dark-800 transition-transform duration-300',
         headerVisible ? 'translate-y-0' : '-translate-y-full',
       )}>
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          {/* Back */}
           <Link
             href={`/chapters/${chapter}`}
             className="flex items-center gap-1.5 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 text-sm transition-colors"
@@ -136,7 +125,6 @@ export function ReadingShell({
             <span className="hidden sm:inline">{chapterTitle}</span>
           </Link>
 
-          {/* Verse indicator */}
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-saffron-500" />
             <span className="font-medium text-dark-700 dark:text-dark-200 text-sm">
@@ -145,9 +133,7 @@ export function ReadingShell({
             <span className="text-dark-300 dark:text-dark-600 text-sm">/ {chapter}.{totalVerses}</span>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-1">
-            <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
             <button
               onClick={handleShare}
               className={cn(
@@ -176,7 +162,6 @@ export function ReadingShell({
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="h-0.5 bg-warm-100 dark:bg-dark-800">
           <div
             className="h-full bg-gradient-to-r from-saffron-500 to-gold-500 transition-all duration-300"
@@ -185,7 +170,6 @@ export function ReadingShell({
         </div>
       </header>
 
-      {/* ── Reading settings panel ── */}
       {settingsOpen && (
         <div className="fixed top-[57px] right-4 z-[1050] w-72 bg-white dark:bg-dark-900 border border-warm-200 dark:border-dark-700 rounded-xl shadow-large p-4 animate-slide-up">
           <div className="flex items-center justify-between mb-4">
@@ -197,8 +181,6 @@ export function ReadingShell({
               <X className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Font size */}
           <div>
             <p className="text-xs text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
               <Type className="w-3.5 h-3.5" /> Font Size
@@ -223,25 +205,18 @@ export function ReadingShell({
         </div>
       )}
 
-      {/* Backdrop for settings panel */}
       {settingsOpen && (
-        <div
-          className="fixed inset-0 z-[1045]"
-          onClick={() => setSettingsOpen(false)}
-        />
+        <div className="fixed inset-0 z-[1045]" onClick={() => setSettingsOpen(false)} />
       )}
 
-      {/* ── Main content ── */}
       <main className="flex-1 pt-16 pb-24">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
           {children}
         </div>
       </main>
 
-      {/* ── Sticky bottom nav ── */}
       <nav className="fixed bottom-0 left-0 right-0 z-[1040] bg-white/95 dark:bg-dark-950/95 backdrop-blur-sm border-t border-warm-100 dark:border-dark-800">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          {/* Prev */}
           <Link
             href={prevHref}
             className={cn(
@@ -255,7 +230,6 @@ export function ReadingShell({
             <span className="hidden sm:inline">Previous</span>
           </Link>
 
-          {/* Verse counter + mini progress */}
           <div className="flex flex-col items-center gap-1">
             <span className="text-xs text-dark-400 dark:text-dark-500">
               Verse {verse} of {totalVerses}
@@ -268,7 +242,6 @@ export function ReadingShell({
             </div>
           </div>
 
-          {/* Next */}
           {nextHref ? (
             <Link
               href={nextHref}
