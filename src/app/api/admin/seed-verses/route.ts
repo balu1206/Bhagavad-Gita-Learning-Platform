@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     const chapterMap = new Map<number, string>(
-      dbChapters.map(c => [c.number, c.id]),
+      dbChapters.map((c: { id: string; number: number }) => [c.number, c.id]),
     );
 
     // ── Fetch source data from GitHub ─────────────────────────────
