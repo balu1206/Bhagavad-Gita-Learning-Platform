@@ -9,7 +9,6 @@ import {
   X, ArrowLeft, Share2, Check, Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
 import { useToast } from '@/components/ui/Toast/Toast';
 
 interface ReadingShellProps {
@@ -17,8 +16,6 @@ interface ReadingShellProps {
   verse: number;
   totalVerses: number;
   chapterTitle: string;
-  verseId: string;
-  chapterId: string;
   children: ReactNode;
 }
 
@@ -27,7 +24,7 @@ type FontSize = 'sm' | 'md' | 'lg';
 const FONT_SIZE_KEY = 'gita-reading-font-size';
 
 export function ReadingShell({
-  chapter, verse, totalVerses, chapterTitle, verseId, chapterId, children,
+  chapter, verse, totalVerses, chapterTitle, children,
 }: ReadingShellProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -147,7 +144,6 @@ export function ReadingShell({
 
           {/* Actions */}
           <div className="flex items-center gap-1">
-            <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
             <button
               onClick={handleShare}
               className={cn(
