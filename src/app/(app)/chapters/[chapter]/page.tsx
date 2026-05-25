@@ -69,7 +69,7 @@ export default function ChapterPage({ params }: PageProps) {
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <Link href={`/chapters/${ch}/${versesRead > 0 ? versesRead : 1}`}>
+          <Link href={`/chapters/${ch}/${versesRead > 0 ? Math.min(versesRead + 1, meta.verseCount) : 1}`}>
             <Button>
               <BookOpen className="w-4 h-4" />
               {versesRead > 0 ? 'Continue Reading' : 'Start Reading'}

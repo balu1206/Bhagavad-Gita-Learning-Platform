@@ -154,7 +154,7 @@ export function FullPlayerSheet() {
               </div>
               <div className="flex justify-between text-xs text-dark-500 mt-1.5 tabular-nums">
                 <span>{formatDuration(store.currentTime)}</span>
-                <span>{store.duration > 0 ? formatDuration(store.duration) : '--:--'}</span>
+                <span>{formatDuration(store.duration)}</span>
               </div>
             </div>
 
