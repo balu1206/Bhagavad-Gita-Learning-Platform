@@ -6,27 +6,24 @@
  * Usage:
  *   POST /api/admin/seed-verses
  *   Body: { "secret": "gita-2026-seed-unlock" }
- *
- * Runs as a single Prisma transaction — completes in ~2–4 seconds.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export const maxDuration = 60; // extend timeout on Vercel
+export const maxDuration = 60;
 
 const SEED_SECRET = 'gita-2026-seed-unlock';
 const SIVANANDA_AUTHOR_ID = 16;
-
 const GITHUB_RAW = 'https://raw.githubusercontent.com/gita/gita/main/data';
 
 interface GVerse {
   id: number;
   chapter_number: number;
   verse_number: number;
-  text: string;            // Sanskrit (Devanagari)
-  transliteration: string; // Roman transliteration
-  word_meanings: string;   // "word—meaning; word—meaning;"
+  text: string;
+  transliteration: string;
+  word_meanings: string;
 }
 
 interface GTranslation {
@@ -55,8 +52,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // ── Fetch source data from GitHub ─────────────────────────────
   try {
+    // ── Fetch chapters from DB to build chapterNumber → chapterId map ──
+    const dbChapters = await prisma.chapter.findMany({
+      select: { id: true, number: true },
+    });
+
+    if (dbChapters.length === 0) {
+      return NextResponse.json(
+        { error: 'No chapters found in database. Run prisma db seed first.' },
+        { status: 400 },
+      );
+    }
+
+    const chapterMap = new Map<number, string>(
+      dbChapters.map(c => [c.number, c.id]),
+    );
+
+    // ── Fetch source data from GitHub ─────────────────────────────
     const [vRes, tRes, cRes] = await Promise.all([
       fetch(`${GITHUB_RAW}/verse.json`),
       fetch(`${GITHUB_RAW}/translation.json`),
@@ -85,15 +98,21 @@ export async function POST(req: NextRequest) {
         .map(c => [c.verse_id, c.description]),
     );
 
-    // ── Build update operations ───────────────────────────────────
-    const updates = verses.map(v => {
-      const slug = `${v.chapter_number}-${v.verse_number}`;
-      const translation = transMap.get(v.id) ?? '';
-      const commentary = commMap.get(v.id) ?? null;
+    // ── Build upsert operations ───────────────────────────────────
+    let skipped = 0;
+    const upserts = verses
+      .filter(v => {
+        const chapterId = chapterMap.get(v.chapter_number);
+        if (!chapterId) { skipped++; return false; }
+        return true;
+      })
+      .map(v => {
+        const slug = `${v.chapter_number}-${v.verse_number}`;
+        const chapterId = chapterMap.get(v.chapter_number)!;
+        const translation = transMap.get(v.id) ?? '';
+        const commentary = commMap.get(v.id) ?? null;
 
-      return prisma.verse.update({
-        where: { slug },
-        data: {
+        const data = {
           sanskrit: v.text.trim(),
           transliteration: v.transliteration.trim(),
           wordByWord: v.word_meanings ? v.word_meanings.trim() : undefined,
@@ -101,19 +120,37 @@ export async function POST(req: NextRequest) {
           translationAuthor: 'Swami Sivananda',
           commentary: commentary ? commentary.trim() : null,
           commentaryAuthor: commentary ? 'Swami Sivananda' : null,
-        },
-      });
-    });
+        };
 
-    // ── Run as single transaction ─────────────────────────────────
-    await prisma.$transaction(updates, { timeout: 55_000 });
+        return prisma.verse.upsert({
+          where: { slug },
+          update: data,
+          create: {
+            slug,
+            chapterId,
+            number: v.verse_number,
+            globalNumber: v.id,
+            ...data,
+          },
+        });
+      });
+
+    // ── Run in batches of 100 to stay within Vercel limits ────────
+    const BATCH = 100;
+    let seeded = 0;
+    for (let i = 0; i < upserts.length; i += BATCH) {
+      const batch = upserts.slice(i, i + BATCH);
+      await prisma.$transaction(batch);
+      seeded += batch.length;
+    }
 
     return NextResponse.json({
       success: true,
-      seeded: updates.length,
+      seeded,
+      skipped,
+      total: verses.length,
       source: 'github.com/gita/gita',
       translation: 'Swami Sivananda (public domain)',
-      commentary: 'Swami Sivananda (public domain)',
     });
   } catch (err) {
     console.error('[seed-verses]', err);
@@ -121,7 +158,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Reject other methods
 export async function GET() {
   return NextResponse.json({ error: 'POST only' }, { status: 405 });
 }
