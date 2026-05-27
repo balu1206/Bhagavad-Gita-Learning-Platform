@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Volume2, ChevronDown, ChevronUp, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { Volume2, Square, ChevronDown, ChevronUp, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
 import { useToast } from '@/components/ui/Toast/Toast';
-import { getAudioTrack } from '@/lib/audioManifest';
 
 interface VerseDisplayProps {
   chapter: number;
@@ -24,41 +23,64 @@ export function VerseDisplay({
   const { toast } = useToast();
   const [showTransliteration, setShowTransliteration] = useState(true);
   const [commentaryOpen, setCommentaryOpen] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioState, setAudioState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const stopAudio = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setAudioState('idle');
+  }, []);
 
   const handlePlayAudio = useCallback(async () => {
-    if (audioLoading) return;
-    setAudioLoading(true);
-    try {
-      const track = getAudioTrack(chapter, verse);
-      if (!track.audioUrl || track.audioUrl.startsWith('[')) {
-        throw new Error('Audio not available');
-      }
-      // Audio URL is valid — delegate to the listen page for full player experience
-      window.location.href = `/listen?chapter=${chapter}&verse=${verse}`;
-    } catch {
-      toast({
-        message: 'Audio not available for this verse',
-        description: 'Audio files are coming soon.',
-        variant: 'warning',
-      });
-    } finally {
-      setAudioLoading(false);
+    if (audioState === 'playing') { stopAudio(); return; }
+    if (audioState === 'loading') return;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      setAudioState('loading');
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(sanskrit);
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.startsWith('sa')) ??
+                        voices.find(v => v.lang.startsWith('hi')) ??
+                        voices.find(v => v.lang.startsWith('mr')) ?? null;
+      if (preferred) utterance.voice = preferred;
+      utterance.lang = preferred?.lang ?? 'hi-IN';
+      utterance.rate = 0.75;
+      utterance.pitch = 1.0;
+
+      utterance.onstart  = () => setAudioState('playing');
+      utterance.onend    = () => setAudioState('idle');
+      utterance.onerror  = () => {
+        setAudioState('idle');
+        toast({ message: 'Audio playback failed', variant: 'error' });
+      };
+
+      utteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+      setTimeout(() => setAudioState(s => s === 'loading' ? 'playing' : s), 300);
+      return;
     }
-  }, [chapter, verse, audioLoading, toast]);
+
+    toast({
+      message: 'Audio not supported in this browser',
+      description: 'Try Chrome or Edge for browser-based recitation.',
+      variant: 'warning',
+    });
+  }, [audioState, sanskrit, stopAudio, toast]);
 
   return (
     <article className="space-y-8 animate-fade-in">
-      {/* Verse reference */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent to-warm-200 dark:to-dark-700" />
         <span className="text-xs font-semibold text-saffron-500 dark:text-saffron-400 uppercase tracking-widest px-2">
-          Chapter {chapter} · Verse {verse}
+          Chapter {chapter} &middot; Verse {verse}
         </span>
         <div className="h-px flex-1 bg-gradient-to-l from-transparent to-warm-200 dark:to-dark-700" />
       </div>
 
-      {/* Sanskrit */}
       <section aria-label="Sanskrit verse">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-widest">
@@ -75,15 +97,17 @@ export function VerseDisplay({
             </button>
             <button
               onClick={handlePlayAudio}
-              disabled={audioLoading}
+              disabled={audioState === 'loading'}
               className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors disabled:opacity-60"
-              aria-label={audioLoading ? 'Loading audio…' : 'Play audio'}
+              aria-label={audioState === 'playing' ? 'Stop audio' : audioState === 'loading' ? 'Loading audio' : 'Play audio'}
             >
-              {audioLoading
+              {audioState === 'loading'
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : audioState === 'playing'
+                ? <Square className="w-3.5 h-3.5 fill-current" />
                 : <Volume2 className="w-3.5 h-3.5" />
               }
-              {audioLoading ? 'Loading…' : 'Play'}
+              {audioState === 'loading' ? 'Loading' : audioState === 'playing' ? 'Stop' : 'Listen'}
             </button>
             {verseId && chapterId && (
               <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
@@ -92,11 +116,9 @@ export function VerseDisplay({
         </div>
 
         <div className="bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border border-warm-200 dark:border-dark-700">
-          {/* DS-005: Sanskrit size bumped to spec (20px mobile / 24px desktop) */}
           <p className="font-sanskrit text-xl sm:text-2xl md:text-3xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
             {sanskrit}
           </p>
-
           {showTransliteration && (
             <p className="mt-4 text-sm text-dark-500 dark:text-dark-400 italic text-center leading-relaxed whitespace-pre-line">
               {transliteration}
@@ -105,7 +127,6 @@ export function VerseDisplay({
         </div>
       </section>
 
-      {/* Translation */}
       <section aria-label="Translation">
         <h2 className="text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-4">
           Translation
@@ -115,12 +136,11 @@ export function VerseDisplay({
             &ldquo;{translation}&rdquo;
           </p>
           <footer className="mt-3 text-sm text-dark-400 dark:text-dark-500">
-            — Edwin Arnold, <cite>The Song Celestial</cite> (public domain)
+            &mdash; Swami Sivananda, <cite>The Bhagavad Gita</cite> (Divine Life Society)
           </footer>
         </blockquote>
       </section>
 
-      {/* Commentary — collapsible */}
       {commentary && (
         <section aria-label="Commentary">
           <button
@@ -152,7 +172,6 @@ export function VerseDisplay({
         </section>
       )}
 
-      {/* Reflection prompt */}
       <section className="bg-gradient-to-br from-spiritual-100 to-saffron-50 dark:from-spiritual-900/20 dark:to-saffron-900/10 rounded-2xl p-6 border border-spiritual-200 dark:border-spiritual-800/50">
         <p className="text-xs font-semibold text-spiritual-600 dark:text-spiritual-400 uppercase tracking-widest mb-2">
           Reflect
