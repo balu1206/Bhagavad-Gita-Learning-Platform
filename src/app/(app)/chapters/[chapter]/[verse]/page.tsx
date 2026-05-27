@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ReadingShell } from '@/components/reader/ReadingShell';
 import { VerseDisplay } from '@/components/reader/VerseDisplay';
+import { VerseProgressTracker } from '@/components/reader/VerseProgressTracker';
 import { prisma } from '@/lib/prisma';
 
 interface PageProps {
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const description =
     verse.translation.length > 155
-      ? verse.translation.substring(0, 152) + '…'
+      ? verse.translation.substring(0, 152) + '...'
       : verse.translation;
 
   return {
@@ -59,6 +60,7 @@ export default async function VersePage({ params }: PageProps) {
       totalVerses={verse.chapter.verseCount}
       chapterTitle={verse.chapter.title}
     >
+      <VerseProgressTracker verseId={verse.id} chapterId={verse.chapterId} />
       <VerseDisplay
         chapter={ch}
         verse={v}

@@ -1,39 +1,27 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BookOpen, Flame } from 'lucide-react';
 import { ChapterCard, type ChapterCardData } from '@/components/chapters/ChapterCard';
 import { ChaptersFilter, type FilterStatus } from '@/components/chapters/ChaptersFilter';
 import { CircularProgress } from '@/components/ui/ProgressBar/ProgressBar';
-
-// Placeholder data — replaced with real DB fetch in Day 20
-const CHAPTERS_DATA: ChapterCardData[] = [
-  { number: 1,  slug: 'chapter-1-arjuna-vishada-yoga',           title: 'Arjuna Vishada Yoga',             titleSanskrit: 'अर्जुन विषाद योग',           transliteration: 'Arjuna Viṣāda Yoga',          verseCount: 47,  versesRead: 47 },
-  { number: 2,  slug: 'chapter-2-sankhya-yoga',                  title: 'Sankhya Yoga',                    titleSanskrit: 'सांख्य योग',                  transliteration: 'Sāṅkhya Yoga',                verseCount: 72,  versesRead: 47 },
-  { number: 3,  slug: 'chapter-3-karma-yoga',                    title: 'Karma Yoga',                      titleSanskrit: 'कर्म योग',                    transliteration: 'Karma Yoga',                  verseCount: 43,  versesRead: 0  },
-  { number: 4,  slug: 'chapter-4-jnana-karma-sanyasa-yoga',      title: 'Jnana Karma Sanyasa Yoga',        titleSanskrit: 'ज्ञान कर्म संन्यास योग',      transliteration: 'Jñāna Karma Sanyāsa Yoga',    verseCount: 42,  versesRead: 0  },
-  { number: 5,  slug: 'chapter-5-karma-sanyasa-yoga',            title: 'Karma Sanyasa Yoga',              titleSanskrit: 'कर्म संन्यास योग',            transliteration: 'Karma Sanyāsa Yoga',          verseCount: 29,  versesRead: 0  },
-  { number: 6,  slug: 'chapter-6-dhyana-yoga',                   title: 'Dhyana Yoga',                     titleSanskrit: 'ध्यान योग',                   transliteration: 'Dhyāna Yoga',                 verseCount: 47,  versesRead: 0  },
-  { number: 7,  slug: 'chapter-7-gyana-vigyana-yoga',            title: 'Gyana Vigyana Yoga',              titleSanskrit: 'ज्ञान विज्ञान योग',           transliteration: 'Jñāna Vijñāna Yoga',          verseCount: 30,  versesRead: 0  },
-  { number: 8,  slug: 'chapter-8-aksara-brahma-yoga',            title: 'Aksara Brahma Yoga',              titleSanskrit: 'अक्षर ब्रह्म योग',            transliteration: 'Akṣara Brahma Yoga',          verseCount: 28,  versesRead: 0  },
-  { number: 9,  slug: 'chapter-9-raja-vidya-raja-guhya-yoga',    title: 'Raja Vidya Raja Guhya Yoga',      titleSanskrit: 'राज विद्या राज गुह्य योग',    transliteration: 'Rāja Vidyā Rāja Guhya Yoga',  verseCount: 34,  versesRead: 0  },
-  { number: 10, slug: 'chapter-10-vibhuti-yoga',                 title: 'Vibhuti Yoga',                    titleSanskrit: 'विभूति योग',                  transliteration: 'Vibhūti Yoga',                verseCount: 42,  versesRead: 0  },
-  { number: 11, slug: 'chapter-11-vishvarupa-darshana-yoga',     title: 'Vishvarupa Darshana Yoga',        titleSanskrit: 'विश्वरूप दर्शन योग',         transliteration: 'Viśvarūpa Darśana Yoga',      verseCount: 55,  versesRead: 0  },
-  { number: 12, slug: 'chapter-12-bhakti-yoga',                  title: 'Bhakti Yoga',                     titleSanskrit: 'भक्ति योग',                   transliteration: 'Bhakti Yoga',                 verseCount: 20,  versesRead: 0  },
-  { number: 13, slug: 'chapter-13-kshetra-kshetrajna-yoga',      title: 'Kshetra Kshetrajna Vibhaga Yoga', titleSanskrit: 'क्षेत्र क्षेत्रज्ञ विभाग योग', transliteration: 'Kṣetra Kṣetrajña Vibhāga Yoga', verseCount: 34, versesRead: 0 },
-  { number: 14, slug: 'chapter-14-gunatraya-vibhaga-yoga',       title: 'Gunatraya Vibhaga Yoga',          titleSanskrit: 'गुणत्रय विभाग योग',          transliteration: 'Guṇatraya Vibhāga Yoga',      verseCount: 27,  versesRead: 0  },
-  { number: 15, slug: 'chapter-15-purushottama-yoga',            title: 'Purushottama Yoga',               titleSanskrit: 'पुरुषोत्तम योग',             transliteration: 'Puruṣottama Yoga',            verseCount: 20,  versesRead: 0  },
-  { number: 16, slug: 'chapter-16-daivasura-sampad-yoga',        title: 'Daivasura Sampad Vibhaga Yoga',   titleSanskrit: 'दैवासुर सम्पद् विभाग योग',   transliteration: 'Daivāsura Sampad Vibhāga Yoga', verseCount: 24, versesRead: 0 },
-  { number: 17, slug: 'chapter-17-shraddhatraya-vibhaga-yoga',   title: 'Shraddhatraya Vibhaga Yoga',      titleSanskrit: 'श्रद्धात्रय विभाग योग',       transliteration: 'Śraddhātraya Vibhāga Yoga',   verseCount: 28,  versesRead: 0  },
-  { number: 18, slug: 'chapter-18-moksha-sanyasa-yoga',          title: 'Moksha Sanyasa Yoga',             titleSanskrit: 'मोक्ष संन्यास योग',           transliteration: 'Mokṣa Sanyāsa Yoga',          verseCount: 78,  versesRead: 0  },
-];
+import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 
 export default function ChaptersPage() {
-  const [query, setQuery]   = useState('');
-  const [status, setStatus] = useState<FilterStatus>('all');
+  const [chapters,  setChapters]  = useState<ChapterCardData[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [query,     setQuery]     = useState('');
+  const [status,    setStatus]    = useState<FilterStatus>('all');
+
+  useEffect(() => {
+    fetch('/api/chapters')
+      .then((r) => r.json())
+      .then((data: ChapterCardData[]) => { setChapters(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let result = CHAPTERS_DATA;
+    let result = chapters;
     if (query) {
       const q = query.toLowerCase();
       result = result.filter(
@@ -49,11 +37,11 @@ export default function ChaptersPage() {
     if (status === 'in-progress') result = result.filter((c) => c.versesRead > 0 && c.versesRead < c.verseCount);
     if (status === 'complete')    result = result.filter((c) => c.versesRead === c.verseCount);
     return result;
-  }, [query, status]);
+  }, [chapters, query, status]);
 
-  const totalRead   = CHAPTERS_DATA.reduce((s, c) => s + c.versesRead, 0);
-  const totalVerses = CHAPTERS_DATA.reduce((s, c) => s + c.verseCount, 0);
-  const overallPct  = Math.round((totalRead / totalVerses) * 100);
+  const totalRead   = chapters.reduce((s, c) => s + c.versesRead, 0);
+  const totalVerses = chapters.reduce((s, c) => s + c.verseCount, 0);
+  const overallPct  = totalVerses > 0 ? Math.round((totalRead / totalVerses) * 100) : 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -91,13 +79,23 @@ export default function ChaptersPage() {
           status={status}
           onQueryChange={setQuery}
           onStatusChange={setStatus}
-          totalCount={CHAPTERS_DATA.length}
+          totalCount={chapters.length}
           filteredCount={filtered.length}
         />
       </div>
 
       {/* Grid */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[...Array(18)].map((_, i) => (
+            <div key={i} className="rounded-2xl border border-warm-100 dark:border-dark-700 p-6">
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-20 mb-4" />
+              <Skeleton className="h-2 w-full" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((chapter) => (
             <ChapterCard key={chapter.number} chapter={chapter} />

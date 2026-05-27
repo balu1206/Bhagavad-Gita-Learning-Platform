@@ -1,48 +1,32 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Bookmark, LayoutGrid, List, Search, X, SlidersHorizontal, Download } from 'lucide-react';
 import { BookmarkCard, type BookmarkData } from '@/components/bookmarks/BookmarkCard';
 import { BookmarkDetailModal } from '@/components/bookmarks/BookmarkDetailModal';
 import { Input } from '@/components/ui/Input/Input';
+import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { cn } from '@/lib/utils';
 import { debounce } from '@/lib/utils';
-
-// Placeholder data — replaced with real API fetch (useSWR/React Query) in integration pass
-const PLACEHOLDER: BookmarkData[] = [
-  {
-    id: '1', verseId: 'v1', note: 'The central teaching of the Gita — act without attachment.',
-    tags: ['karma-yoga', 'action', 'favourite'],
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    verse: { number: 47, slug: '2-47', sanskrit: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।', translation: 'You have a right to perform your prescribed duties, but you are not entitled to the fruits.', chapter: { number: 2, title: 'Sankhya Yoga' } },
-  },
-  {
-    id: '2', verseId: 'v2', note: null, tags: ['devotion'],
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    verse: { number: 7,  slug: '4-7',  sanskrit: 'यदा यदा हि धर्मस्य ग्लानिर्भवति भारत।', translation: 'Whenever and wherever there is a decline in righteousness, I manifest myself personally.', chapter: { number: 4, title: 'Jnana Karma Sanyasa Yoga' } },
-  },
-  {
-    id: '3', verseId: 'v3', note: 'Power of surrender.', tags: ['bhakti', 'surrender'],
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    verse: { number: 66, slug: '18-66', sanskrit: 'सर्वधर्मान्परित्यज्य मामेकं शरणं व्रज।', translation: 'Abandon all varieties of religion and just surrender unto me.', chapter: { number: 18, title: 'Moksha Sanyasa Yoga' } },
-  },
-  {
-    id: '4', verseId: 'v4', note: null, tags: ['meditation', 'self'],
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    verse: { number: 5,  slug: '6-5',  sanskrit: 'उद्धरेदात्मनात्मानं नात्मानमवसादयेत्।', translation: 'A person must elevate himself with the help of his mind, and not degrade himself.', chapter: { number: 6, title: 'Dhyana Yoga' } },
-  },
-];
 
 type SortOption = 'newest' | 'oldest' | 'chapter';
 type ViewMode   = 'grid'   | 'list';
 
 export default function BookmarksPage() {
-  const [bookmarks, setBookmarks]     = useState<BookmarkData[]>(PLACEHOLDER);
+  const [bookmarks, setBookmarks]     = useState<BookmarkData[]>([]);
+  const [loading,   setLoading]       = useState(true);
   const [view,      setView]          = useState<ViewMode>('grid');
   const [query,     setQuery]         = useState('');
   const [sort,      setSort]          = useState<SortOption>('newest');
   const [chapter,   setChapter]       = useState<number | null>(null);
   const [editing,   setEditing]       = useState<BookmarkData | null>(null);
+
+  useEffect(() => {
+    fetch('/api/bookmarks')
+      .then((r) => r.json())
+      .then((data: { bookmarks: BookmarkData[] }) => { setBookmarks(data.bookmarks ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   // Debounced search
   const debouncedSet = useMemo(() => debounce((...args: unknown[]) => setQuery(args[0] as string), 300), []);
@@ -187,7 +171,18 @@ export default function BookmarksPage() {
       )}
 
       {/* Grid / List */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-2xl border border-warm-100 dark:border-dark-700 p-5">
+              <Skeleton className="h-4 w-24 mb-3" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4 mb-4" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-24">
           <Bookmark className="w-12 h-12 text-dark-200 dark:text-dark-700 mx-auto mb-4" />
           <p className="text-dark-500 dark:text-dark-400 font-medium">
