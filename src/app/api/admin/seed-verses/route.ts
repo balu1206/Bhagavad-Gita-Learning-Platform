@@ -43,22 +43,17 @@ function buildGlobalMap(): Map<string, number> {
 }
 
 /**
- * Parse word_meanings string from GitHub into a JSON array.
- * The format is typically: "word1 - meaning1\nword2 - meaning2" or similar.
- * Falls back to null if parsing fails or input is empty.
+ * Parse word_meanings string into a JSON array of {word, meaning} pairs.
+ * Returns null if empty or unparseable.
  */
 function parseWordMeanings(raw: string | null | undefined): { word: string; meaning: string }[] | null {
   if (!raw?.trim()) return null;
   try {
-    // Try splitting on newlines or common separators
     const lines = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     const result: { word: string; meaning: string }[] = [];
     for (const line of lines) {
-      // Common separators: " - ", " : ", " – "
       const match = line.match(/^(.+?)\s*[-–:]\s*(.+)$/);
-      if (match) {
-        result.push({ word: match[1].trim(), meaning: match[2].trim() });
-      }
+      if (match) result.push({ word: match[1].trim(), meaning: match[2].trim() });
     }
     return result.length > 0 ? result : null;
   } catch {
@@ -85,11 +80,8 @@ export async function POST(req: NextRequest) {
         where:  { number: ch.n },
         update: { verseCount: ch.verseCount },
         create: {
-          number: ch.n,
-          slug,
-          title: ch.title,
-          titleSanskrit: '',
-          transliteration: '',
+          number: ch.n, slug, title: ch.title,
+          titleSanskrit: '', transliteration: '',
           summary: `${ch.title} — Chapter ${ch.n}.`,
           verseCount: ch.verseCount,
         },
@@ -98,7 +90,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, step: 'chapters', seeded: CHAPTERS.length });
   }
 
-  // ── Step 2/3: Seed verses ─────────────────────────────────────────────────
+  // ── Step 2/3: Seed verses (bulk createMany) ───────────────────────────────
   if (step === 'verses') {
     const from = body.from ?? 1;
     const to   = body.to   ?? 18;
@@ -108,6 +100,7 @@ export async function POST(req: NextRequest) {
     const chMap = new Map<number, string>(dbChapters.map((c: { id: string; number: number }) => [c.number, c.id]));
     const gMap  = buildGlobalMap();
 
+    // Fetch all three source files in parallel
     const [vRes, tRes, cRes] = await Promise.all([
       fetch(`${GITHUB_RAW}/verse.json`),
       fetch(`${GITHUB_RAW}/translation.json`),
@@ -131,60 +124,55 @@ export async function POST(req: NextRequest) {
         .map((c: GCommentary) => [c.verse_id, c.description])
     );
 
-    const verses = allVerses.filter(
-      (v: GVerse) => v.chapter_number >= from && v.chapter_number <= to
-    );
-
-    let seeded = 0;
-    let skipped = 0;
-
-    for (const v of verses) {
-      const chapterId = chMap.get(v.chapter_number);
-      if (!chapterId) { skipped++; continue; }
-
-      const slug         = `${v.chapter_number}-${v.verse_number}`;
-      const globalNumber = gMap.get(slug) ?? v.id;
-      const sanskrit     = v.text?.trim() ?? '';
-      const transliteration = v.transliteration?.trim() ?? '';
-      const translation  = (transMap.get(v.id) ?? '').trim();
-      const commentary   = commMap.get(v.id)?.trim() ?? null;
-      const wordByWord   = parseWordMeanings(v.word_meanings);
-
-      await prisma.verse.upsert({
-        where:  { slug },
-        update: {
-          sanskrit,
-          transliteration,
-          wordByWord: wordByWord ?? undefined,
-          translation,
-          translationAuthor: 'Swami Sivananda',
-          commentary,
-          commentaryAuthor: commentary ? 'Swami Sivananda' : null,
-        },
-        create: {
+    // Build rows for this chapter range
+    const rows = allVerses
+      .filter((v: GVerse) => v.chapter_number >= from && v.chapter_number <= to)
+      .flatMap((v: GVerse) => {
+        const chapterId = chMap.get(v.chapter_number);
+        if (!chapterId) return [];
+        const slug         = `${v.chapter_number}-${v.verse_number}`;
+        const globalNumber = gMap.get(slug) ?? v.id;
+        const translation  = (transMap.get(v.id) ?? '').trim();
+        const commentary   = commMap.get(v.id)?.trim() ?? null;
+        const wordByWord   = parseWordMeanings(v.word_meanings) as unknown;
+        return [{
           chapterId,
-          number: v.verse_number,
+          number:            v.verse_number,
           globalNumber,
           slug,
-          sanskrit,
-          transliteration,
-          wordByWord: wordByWord ?? undefined,
+          sanskrit:          v.text?.trim() ?? '',
+          transliteration:   v.transliteration?.trim() ?? '',
+          wordByWord,
           translation,
           translationAuthor: 'Swami Sivananda',
           commentary,
-          commentaryAuthor: commentary ? 'Swami Sivananda' : null,
-        },
+          commentaryAuthor:  commentary ? 'Swami Sivananda' : null,
+        }];
       });
 
-      seeded++;
+    if (!rows.length) {
+      return NextResponse.json({ success: true, step: 'verses', range: `${from}-${to}`, seeded: 0 });
     }
+
+    // Delete existing verses in this range first (so re-runs are idempotent),
+    // then bulk-insert — faster than 300+ individual upserts.
+    const chapterIds = Array.from(
+      new Set(
+        allVerses
+          .filter((v: GVerse) => v.chapter_number >= from && v.chapter_number <= to)
+          .map((v: GVerse) => chMap.get(v.chapter_number))
+          .filter((id): id is string => !!id)
+      )
+    );
+
+    await prisma.verse.deleteMany({ where: { chapterId: { in: chapterIds } } });
+    const result = await prisma.verse.createMany({ data: rows as Parameters<typeof prisma.verse.createMany>[0]['data'] });
 
     return NextResponse.json({
       success: true,
-      step: 'verses',
-      range: `${from}-${to}`,
-      seeded,
-      skipped,
+      step:    'verses',
+      range:   `${from}-${to}`,
+      seeded:  result.count,
     });
   }
 
