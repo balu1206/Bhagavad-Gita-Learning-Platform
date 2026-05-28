@@ -14,27 +14,43 @@ interface AppShellProps {
   className?: string;
 }
 
-// Reader / full-screen routes own their own chrome.
-// AppShell suppresses its own Header/Sidebar/BottomNav on these pages to
-// avoid double-stacking, overflow-auto scroll, and z-index conflicts.
-function isReaderRoute(pathname: string): boolean {
-  // Specific verse pages: /chapters/<n>/<m>
-  if (/^\/chapters\/\d+\/\d+(\/|$)/.test(pathname)) return true;
-  // Listen / audio player — needs a true full-screen viewport
-  if (pathname.startsWith('/listen')) return true;
-  return false;
+// Two kinds of "no shell" routes:
+//
+//  'verse'  — verse reader pages (/chapters/<n>/<m>): ReadingShell owns its
+//             own header/footer and needs normal document scroll.
+//             Wrapper: min-h-screen, no overflow restriction.
+//
+//  'listen' — listen/audio player (/listen): true full-screen viewport,
+//             zero scroll, no sidebar/header.
+//             Wrapper: h-dvh + overflow-hidden.
+//
+type RouteMode = 'verse' | 'listen' | 'app';
+
+function getRouteMode(pathname: string): RouteMode {
+  if (/^\/chapters\/\d+\/\d+(\/|$)/.test(pathname)) return 'verse';
+  if (pathname.startsWith('/listen')) return 'listen';
+  return 'app';
 }
 
 export function AppShell({ children, title, showHeader = true, className }: AppShellProps) {
   const pathname = usePathname() ?? '';
-  const readerMode = isReaderRoute(pathname);
+  const routeMode = getRouteMode(pathname);
 
-  // In reader mode, render only the children — ReadingShell / ListenPage provides all chrome.
-  // h-dvh + overflow-hidden ensures true full-screen with no scrollbar bleed.
-  if (readerMode) {
+  // ── Listen page: true full-screen, no scroll ─────────────────────────────
+  if (routeMode === 'listen') {
     return (
       <div className="h-dvh overflow-hidden bg-dark-950">
         <main id="main-content" className="h-full overflow-hidden">{children}</main>
+      </div>
+    );
+  }
+
+  // ── Verse reader: bare wrapper, ReadingShell handles its own chrome ───────
+  // min-h-screen (not h-dvh) so content can scroll freely when expanded.
+  if (routeMode === 'verse') {
+    return (
+      <div className="min-h-screen bg-white dark:bg-dark-950">
+        <main id="main-content">{children}</main>
       </div>
     );
   }
