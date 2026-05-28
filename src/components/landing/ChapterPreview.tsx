@@ -19,7 +19,7 @@ const SAMPLE_VERSE = {
     { word: 'kadācana', meaning: 'at any time' },
   ],
   translation: 'You have a right to perform your prescribed duty, but you are not entitled to the fruits of action. Never consider yourself the cause of the results of your activities, and never be attached to not doing your duty.',
-  commentary: 'There are three considerations here: prescribed duties, capricious work according to one's whims, and nonperformance of duties. Prescribed duties refer to activities performed while one is in the modes of material nature. Capricious work means actions without the sanction of authority, and nonperformance of duties refers to not discharging one's prescribed duties. The Lord advised that Arjuna not be inactive, but that he perform his prescribed duty without being attached to the result. One who is attached to the result of his work is also the cause of the action. Thus he is the enjoyer or sufferer of the result of such actions.',
+  commentary: "There are three considerations here: prescribed duties, capricious work according to one's whims, and nonperformance of duties. Prescribed duties refer to activities performed while one is in the modes of material nature. Capricious work means actions without the sanction of authority, and nonperformance of duties refers to not discharging one's prescribed duties. The Lord advised that Arjuna not be inactive, but that he perform his prescribed duty without being attached to the result. One who is attached to the result of his work is also the cause of the action. Thus he is the enjoyer or sufferer of the result of such actions.",
 };
 
 export function ChapterPreview() {
