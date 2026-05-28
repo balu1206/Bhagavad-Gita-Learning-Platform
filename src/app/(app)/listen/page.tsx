@@ -271,8 +271,8 @@ export default function ListenPage() {
   const isActuallyPlaying = audioState === 'playing';
 
   return (
-    /* h-dvh + overflow-hidden = exactly one screen, zero scroll */
-    <div className="h-dvh overflow-hidden bg-gradient-to-b from-dark-950 via-dark-900 to-saffron-950/20 flex flex-col select-none">
+    /* h-full fills the h-dvh parent provided by AppShell reader-mode wrapper */
+    <div className="h-full overflow-hidden bg-gradient-to-b from-dark-950 via-dark-900 to-saffron-950/20 flex flex-col select-none">
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-6 pt-5 pb-2 flex-shrink-0">
@@ -338,9 +338,8 @@ export default function ListenPage() {
               } : { width: '0%' }}
             />
           </div>
-          <div className="flex justify-between text-xs text-dark-600 mt-1.5 tabular-nums">
+          <div className="flex text-xs text-dark-600 mt-1.5 tabular-nums">
             <span>{isActuallyPlaying ? 'Playing' : '0:00'}</span>
-            <span>Web Speech</span>
           </div>
         </div>
 
@@ -349,7 +348,7 @@ export default function ListenPage() {
           <button
             onClick={handlePrev}
             disabled={chapter === 1 && verse === 1}
-            className="p-2 text-dark-300 hover:text-white transition-colors disabled:opacity-30"
+            className="p-2 text-white/85 hover:text-white transition-colors disabled:opacity-30"
             aria-label="Previous verse"
           >
             <SkipBack className="w-6 h-6" fill="currentColor" />
@@ -378,7 +377,7 @@ export default function ListenPage() {
           <button
             onClick={handleNext}
             disabled={chapter === 18 && verse === (CHAPTER_VERSE_COUNTS[18] ?? 78)}
-            className="p-2 text-dark-300 hover:text-white transition-colors disabled:opacity-30"
+            className="p-2 text-white/85 hover:text-white transition-colors disabled:opacity-30"
             aria-label="Next verse"
           >
             <SkipForward className="w-6 h-6" fill="currentColor" />
@@ -390,7 +389,7 @@ export default function ListenPage() {
           onClick={cycleSpeed}
           className={cn(
             'px-5 py-2 rounded-full text-sm font-semibold transition-all',
-            'border border-dark-700 text-dark-400 hover:border-saffron-600 hover:text-saffron-400',
+            'border border-saffron-500 text-white hover:border-saffron-400 hover:text-saffron-300',
           )}
           aria-label={`Playback speed: ${speed}×. Tap to change.`}
         >
@@ -400,7 +399,7 @@ export default function ListenPage() {
         {/* Read along */}
         <Link
           href={`/chapters/${chapter}/${verse}`}
-          className="flex items-center gap-2 text-sm text-dark-500 hover:text-saffron-400 transition-colors"
+          className="flex items-center gap-2 text-sm text-white/60 hover:text-saffron-400 transition-colors"
           onClick={stopAudio}
         >
           <BookOpen className="w-4 h-4" />

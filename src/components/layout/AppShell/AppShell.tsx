@@ -14,23 +14,27 @@ interface AppShellProps {
   className?: string;
 }
 
-// Reader (verse) routes own their full-screen chrome via ReadingShell.
-// AppShell suppresses its own Header/Sidebar/BottomNav on those pages to
-// avoid double-stacking + z-index conflicts.
+// Reader / full-screen routes own their own chrome.
+// AppShell suppresses its own Header/Sidebar/BottomNav on these pages to
+// avoid double-stacking, overflow-auto scroll, and z-index conflicts.
 function isReaderRoute(pathname: string): boolean {
-  // Matches /chapters/<n>/<m> where both are numeric (a specific verse)
-  return /^\/chapters\/\d+\/\d+(\/|$)/.test(pathname);
+  // Specific verse pages: /chapters/<n>/<m>
+  if (/^\/chapters\/\d+\/\d+(\/|$)/.test(pathname)) return true;
+  // Listen / audio player — needs a true full-screen viewport
+  if (pathname.startsWith('/listen')) return true;
+  return false;
 }
 
 export function AppShell({ children, title, showHeader = true, className }: AppShellProps) {
   const pathname = usePathname() ?? '';
   const readerMode = isReaderRoute(pathname);
 
-  // In reader mode, render only the children — ReadingShell provides all chrome.
+  // In reader mode, render only the children — ReadingShell / ListenPage provides all chrome.
+  // h-dvh + overflow-hidden ensures true full-screen with no scrollbar bleed.
   if (readerMode) {
     return (
-      <div className="min-h-screen bg-warm-50 dark:bg-dark-900">
-        <main id="main-content">{children}</main>
+      <div className="h-dvh overflow-hidden bg-dark-950">
+        <main id="main-content" className="h-full overflow-hidden">{children}</main>
       </div>
     );
   }

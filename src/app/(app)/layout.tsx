@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { AppShell } from '@/components/layout/AppShell/AppShell';
 
 // Routes inside (app) that are publicly browsable without a session
-const PUBLIC_PREFIXES = ['/chapters'];
+const PUBLIC_PREFIXES = ['/chapters', '/listen'];
 
 export const dynamic = 'force-dynamic';
 
