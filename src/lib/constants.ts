@@ -19,15 +19,12 @@ export const FONT_SIZE_MAP: Record<FontSize, string> = {
 export const READING_THEMES = ['light', 'sepia', 'dark'] as const;
 export type ReadingTheme = (typeof READING_THEMES)[number];
 
-// DS-001: NAV order matches design spec (Dashboard → Read → Listen → Journey → Bookmarks → Settings → Profile)
+// Simplified nav: Read, Journey, Bookmarks only.
+// Settings & Profile are in the header avatar dropdown.
 export const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
   { label: 'Read',      href: '/chapters',  icon: 'BookOpen' },
-  { label: 'Listen',    href: '/listen',    icon: 'Headphones' },
   { label: 'Journey',   href: '/journey',   icon: 'Map' },
   { label: 'Bookmarks', href: '/bookmarks', icon: 'Bookmark' },
-  { label: 'Settings',  href: '/profile?tab=settings', icon: 'Settings' },
-  { label: 'Profile',   href: '/profile',   icon: 'User' },
 ] as const;
 
 export const TOAST_DURATION = 4000; // ms

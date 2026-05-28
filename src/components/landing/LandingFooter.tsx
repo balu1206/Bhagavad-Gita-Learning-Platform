@@ -3,28 +3,17 @@ import { Flame, GitBranch, Globe } from 'lucide-react';
 
 const FOOTER_LINKS = {
   Platform: [
-    { label: 'Read', href: '/chapters' },
-    { label: 'Listen', href: '/listen' },
+    { label: 'Read',    href: '/chapters' },
     { label: 'Journey', href: '/journey' },
-    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Bookmarks', href: '/bookmarks' },
   ],
   Learn: [
     { label: 'About the Gita', href: '/about' },
-    { label: 'Sanskrit Guide', href: '/sanskrit' },
-    { label: 'Commentaries', href: '/commentaries' },
-    { label: 'Blog', href: '/blog' },
+    { label: 'Contact',        href: '/contact' },
   ],
   Account: [
     { label: 'Sign Up', href: '/register' },
-    { label: 'Log In', href: '/login' },
-    { label: 'Profile', href: '/profile' },
-    { label: 'Settings', href: '/settings' },
-  ],
-  Legal: [
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Terms of Service', href: '/terms' },
-    { label: 'Cookie Policy', href: '/cookies' },
-    { label: 'Contact', href: '/contact' },
+    { label: 'Log In',  href: '/login' },
   ],
 };
 
@@ -32,7 +21,7 @@ export function LandingFooter() {
   return (
     <footer className="bg-dark-900 border-t border-dark-800 text-dark-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">

@@ -1,8 +1,8 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { Bell, Search, X, BookOpen, ChevronRight } from 'lucide-react';
+import { Bell, Search, X, BookOpen, ChevronRight, User, Settings, LogOut } from 'lucide-react';
 import { ThemeToggle } from '@/components/shared/ThemeToggle/ThemeToggle';
 import { Avatar } from '@/components/ui/Avatar';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -232,6 +232,48 @@ function NotificationsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── AvatarMenu ───────────────────────────────────────────────────────────────
+
+function AvatarMenu({ userName, onClose }: { userName: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <>
+      <div className="absolute inset-0 z-[1050]" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 z-[1060] w-52 bg-white dark:bg-dark-900 border border-warm-200 dark:border-dark-700 rounded-2xl shadow-large overflow-hidden">
+        <div className="px-4 py-3 border-b border-warm-100 dark:border-dark-800">
+          <p className="text-sm font-semibold text-dark-800 dark:text-dark-100 truncate">{userName}</p>
+        </div>
+        <div className="py-1">
+          <Link href="/profile" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-600 dark:text-dark-300 hover:bg-warm-50 dark:hover:bg-dark-800 transition-colors">
+            <User className="w-4 h-4 text-dark-400" />
+            Profile
+          </Link>
+          <Link href="/profile?tab=settings" onClick={onClose}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-dark-600 dark:text-dark-300 hover:bg-warm-50 dark:hover:bg-dark-800 transition-colors">
+            <Settings className="w-4 h-4 text-dark-400" />
+            Settings
+          </Link>
+        </div>
+        <div className="border-t border-warm-100 dark:border-dark-800 py-1">
+          <button
+            onClick={() => { onClose(); signOut({ callbackUrl: '/' }); }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Header ───────────────────────────────────────────────────────────────────
 
 export function Header({ title, className }: HeaderProps) {
@@ -239,7 +281,9 @@ export function Header({ title, className }: HeaderProps) {
   const userName = session?.user?.name ?? 'Seeker';
   const [searchOpen,        setSearchOpen]        = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const bellRef = useRef<HTMLDivElement>(null);
+  const [avatarMenuOpen,    setAvatarMenuOpen]    = useState(false);
+  const bellRef    = useRef<HTMLDivElement>(null);
+  const avatarRef  = useRef<HTMLDivElement>(null);
 
   return (
     <>
@@ -282,12 +326,19 @@ export function Header({ title, className }: HeaderProps) {
 
           <ThemeToggle />
 
-          <button
-            aria-label="Open profile menu"
-            className="ml-1 rounded-full focus-visible:ring-2 focus-visible:ring-saffron-500 focus-visible:ring-offset-2 focus:outline-none"
-          >
-            <Avatar size="sm" name={userName} />
-          </button>
+          <div className="relative ml-1" ref={avatarRef}>
+            <button
+              onClick={() => setAvatarMenuOpen((o) => !o)}
+              aria-label="Open profile menu"
+              aria-expanded={avatarMenuOpen}
+              className="rounded-full focus-visible:ring-2 focus-visible:ring-saffron-500 focus-visible:ring-offset-2 focus:outline-none"
+            >
+              <Avatar size="sm" name={userName} />
+            </button>
+            {avatarMenuOpen && (
+              <AvatarMenu userName={userName} onClose={() => setAvatarMenuOpen(false)} />
+            )}
+          </div>
         </div>
       </header>
 

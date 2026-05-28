@@ -17,7 +17,7 @@ export function HeroSection() {
         {/* Badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-saffron-200 bg-saffron-50 px-4 py-1.5 text-sm font-medium text-saffron-700 dark:border-saffron-800 dark:bg-saffron-900/20 dark:text-saffron-300 mb-8 animate-fade-in">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>700 verses. One timeless wisdom.</span>
+          <span>The Bhagavad Gita — beautifully designed</span>
         </div>
 
         {/* Headline — scales from 2.25rem on tiny screens up to 7xl on desktop */}
@@ -33,23 +33,22 @@ export function HeroSection() {
         </p>
 
         {/* Sub-headline */}
-        <p className="mx-auto max-w-2xl text-lg text-dark-500 dark:text-dark-400 leading-relaxed mb-10 animate-fade-in">
-          Read all 18 chapters, listen to audio recitations, track your daily practice,
-          and follow a guided beginner journey — beautifully designed for the modern seeker.
+        <p className="mx-auto max-w-xl text-xl text-dark-500 dark:text-dark-400 leading-relaxed mb-10 animate-fade-in font-medium">
+          18 chapters. 700 verses. One timeless wisdom.
         </p>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16 animate-slide-up">
           <Link
             href="/register"
-            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 transition-all duration-200"
+            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all duration-200"
           >
             Begin for Free
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
           <Link
             href="/chapters"
-            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-medium border-2 border-saffron-500 text-saffron-600 dark:text-saffron-400 bg-white dark:bg-dark-850 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
+            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold border-2 border-saffron-500 text-saffron-600 dark:text-saffron-400 bg-transparent hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             Browse Verses
@@ -76,7 +75,7 @@ export function HeroSection() {
           {[
             { icon: BookOpen, text: 'Sanskrit + Translation' },
             { icon: Headphones, text: 'Audio Recitation' },
-            { icon: Sparkles, text: 'Daily Streaks' },
+            { icon: Sparkles, text: 'Guided Journey' },
           ].map(({ icon: Icon, text }) => (
             <div
               key={text}

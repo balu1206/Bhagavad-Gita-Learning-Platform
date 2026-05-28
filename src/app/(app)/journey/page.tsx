@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Lock, CheckCircle2, ChevronRight, Flame, Star, Zap } from 'lucide-react';
+import { Lock, CheckCircle2, ChevronRight } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,13 +23,6 @@ interface JourneyStepData {
   quizPassed?: boolean;
 }
 
-interface UserStats {
-  totalXp: number;
-  level: number;
-  currentStreak: number;
-  stepsCompleted: number;
-}
-
 // ─── Static step definitions (used for display when API not yet available) ───
 
 const JOURNEY_STEPS_STATIC: Omit<JourneyStepData, 'id' | 'status' | 'lessonCount' | 'quizScore' | 'quizPassed'>[] = [
@@ -42,19 +35,6 @@ const JOURNEY_STEPS_STATIC: Omit<JourneyStepData, 'id' | 'status' | 'lessonCount
   { order: 7, slug: 'liberation',      title: 'Liberation & Self-Realisation', subtitle: "The Gita's teaching on freedom",                    icon: '🌅', estimatedMinutes: 18 },
   { order: 8, slug: 'daily-practice',  title: 'Daily Practice & Integration', subtitle: "Bringing the Gita's wisdom into everyday life",      icon: '🌿', estimatedMinutes: 15 },
 ];
-
-// ─── XP / Level helpers ───────────────────────────────────────────────────────
-
-function xpForLevel(level: number): number {
-  return level * 200;
-}
-
-function getLevelProgress(xp: number, level: number): number {
-  const prevXp = level > 1 ? Array.from({ length: level - 1 }, (_, i) => xpForLevel(i + 1)).reduce((a, b) => a + b, 0) : 0;
-  const nextXp = xpForLevel(level);
-  const earned = xp - prevXp;
-  return Math.min(100, Math.round((earned / nextXp) * 100));
-}
 
 // ─── Step card ────────────────────────────────────────────────────────────────
 
@@ -197,81 +177,10 @@ function StepCard({
   );
 }
 
-// ─── Stats bar ────────────────────────────────────────────────────────────────
-
-function StatsBar({ stats }: { stats: UserStats }) {
-  const progress = getLevelProgress(stats.totalXp, stats.level);
-
-  return (
-    <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-dark-800">
-        <div className="mb-1 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-saffron-500" />
-          <span className="text-xs text-warm-400">Level</span>
-        </div>
-        <div className="text-2xl font-bold text-dark-900 dark:text-warm-50">
-          {stats.level}
-        </div>
-        <div className="mt-2 h-1.5 w-full rounded-full bg-warm-100 dark:bg-dark-700">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-saffron-400 to-saffron-600 transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="mt-1 text-xs text-warm-400">{stats.totalXp} XP</div>
-      </div>
-
-      <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-dark-800">
-        <div className="mb-1 flex items-center gap-2">
-          <Flame className="h-4 w-4 text-orange-500" />
-          <span className="text-xs text-warm-400">Streak</span>
-        </div>
-        <div className="text-2xl font-bold text-dark-900 dark:text-warm-50">
-          {stats.currentStreak}
-        </div>
-        <div className="text-xs text-warm-400">days</div>
-      </div>
-
-      <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-dark-800">
-        <div className="mb-1 flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-          <span className="text-xs text-warm-400">Complete</span>
-        </div>
-        <div className="text-2xl font-bold text-dark-900 dark:text-warm-50">
-          {stats.stepsCompleted}
-        </div>
-        <div className="text-xs text-warm-400">of 8 steps</div>
-      </div>
-
-      <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-dark-800">
-        <div className="mb-1 flex items-center gap-2">
-          <Star className="h-4 w-4 text-gold-500" />
-          <span className="text-xs text-warm-400">Progress</span>
-        </div>
-        <div className="text-2xl font-bold text-dark-900 dark:text-warm-50">
-          {Math.round((stats.stepsCompleted / 8) * 100)}%
-        </div>
-        <div className="mt-2 h-1.5 w-full rounded-full bg-warm-100 dark:bg-dark-700">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600 transition-all"
-            style={{ width: `${(stats.stepsCompleted / 8) * 100}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function JourneyPage() {
   const [steps, setSteps] = useState<JourneyStepData[]>([]);
-  const [stats, setStats] = useState<UserStats>({
-    totalXp: 150,
-    level: 1,
-    currentStreak: 12,
-    stepsCompleted: 0,
-  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -282,13 +191,10 @@ export default function JourneyPage() {
           const data = await res.json();
           if (data.steps && data.steps.length > 0) {
             setSteps(data.steps);
-            setStats(data.stats);
           } else {
-            // Fallback: show static data with first step unlocked if API returns empty
             buildStaticSteps(0);
           }
         } else {
-          // Fallback: show static data with first step unlocked
           buildStaticSteps(0);
         }
       } catch {
@@ -342,8 +248,19 @@ export default function JourneyPage() {
           </p>
         </div>
 
-        {/* Stats */}
-        <StatsBar stats={{ ...stats, stepsCompleted: completedCount }} />
+        {/* Simple progress bar (no gamification) */}
+        <div className="mb-6 rounded-2xl bg-white dark:bg-dark-800 border border-warm-100 dark:border-dark-700 p-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-dark-700 dark:text-dark-200">Your Progress</span>
+            <span className="text-sm text-saffron-600 dark:text-saffron-400 font-semibold">{completedCount} / 8 steps</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-warm-100 dark:bg-dark-700">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-saffron-400 to-saffron-600 transition-all duration-500"
+              style={{ width: `${(completedCount / 8) * 100}%` }}
+            />
+          </div>
+        </div>
 
         {/* Next step highlight */}
         {nextStep && (

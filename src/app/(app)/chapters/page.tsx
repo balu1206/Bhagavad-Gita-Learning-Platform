@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { BookOpen, Flame, Lock } from 'lucide-react';
+import { BookOpen, Flame, Lock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ChapterCard, type ChapterCardData } from '@/components/chapters/ChapterCard';
 import { ChaptersFilter, type FilterStatus } from '@/components/chapters/ChaptersFilter';
-import { CircularProgress } from '@/components/ui/ProgressBar/ProgressBar';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+
+interface LastRead { chapter: number; verse: number; title: string; ts: number; }
 
 export default function ChaptersPage() {
   const { data: session } = useSession();
@@ -15,12 +16,21 @@ export default function ChaptersPage() {
   const [loading,   setLoading]   = useState(true);
   const [query,     setQuery]     = useState('');
   const [status,    setStatus]    = useState<FilterStatus>('all');
+  const [lastRead,  setLastRead]  = useState<LastRead | null>(null);
 
   useEffect(() => {
     fetch('/api/chapters')
       .then((r) => r.json())
       .then((data: ChapterCardData[]) => { setChapters(data); setLoading(false); })
       .catch(() => setLoading(false));
+  }, []);
+
+  // Load last-read position from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('gita_last_read');
+      if (raw) setLastRead(JSON.parse(raw) as LastRead);
+    } catch { /* ignore */ }
   }, []);
 
   const filtered = useMemo(() => {
@@ -42,14 +52,31 @@ export default function ChaptersPage() {
     return result;
   }, [chapters, query, status]);
 
-  const totalRead   = chapters.reduce((s, c) => s + c.versesRead, 0);
-  const totalVerses = chapters.reduce((s, c) => s + c.verseCount, 0);
-  const overallPct  = totalVerses > 0 ? Math.round((totalRead / totalVerses) * 100) : 0;
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      {/* Continue Reading banner — shown when user has a reading history */}
+      {lastRead && (
+        <Link
+          href={`/chapters/${lastRead.chapter}/${lastRead.verse}`}
+          className="flex items-center justify-between gap-4 mb-6 px-5 py-4 rounded-2xl bg-gradient-to-r from-saffron-50 to-gold-50 dark:from-saffron-900/20 dark:to-gold-900/10 border border-saffron-200 dark:border-saffron-700 hover:shadow-soft transition-shadow group"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <BookOpen className="w-5 h-5 text-saffron-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-saffron-600 dark:text-saffron-400 font-medium uppercase tracking-widest mb-0.5">Continue where you left off</p>
+              <p className="font-semibold text-dark-900 dark:text-white truncate">
+                Chapter {lastRead.chapter}, Verse {lastRead.verse}
+                {lastRead.title && <span className="text-dark-400 dark:text-dark-500 font-normal"> · {lastRead.title}</span>}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-saffron-500 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      )}
+
       {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BookOpen className="w-5 h-5 text-saffron-500" />
@@ -65,16 +92,7 @@ export default function ChaptersPage() {
           </p>
         </div>
 
-        {/* Progress ring — only for signed-in users */}
-        {session ? (
-          <div className="flex items-center gap-4 bg-white dark:bg-dark-800 rounded-2xl border border-warm-100 dark:border-dark-700 p-4 self-start">
-            <CircularProgress value={overallPct} size={60} strokeWidth={5} />
-            <div>
-              <p className="font-semibold text-dark-900 dark:text-white">{overallPct}% complete</p>
-              <p className="text-sm text-dark-400 dark:text-dark-500">{totalRead} / {totalVerses} verses</p>
-            </div>
-          </div>
-        ) : (
+        {!session && (
           <Link
             href="/register"
             className="flex items-center gap-3 bg-gradient-to-r from-saffron-50 to-gold-50 dark:from-saffron-900/20 dark:to-gold-900/10 rounded-2xl border border-saffron-200 dark:border-saffron-800 p-4 self-start hover:shadow-soft transition-shadow"

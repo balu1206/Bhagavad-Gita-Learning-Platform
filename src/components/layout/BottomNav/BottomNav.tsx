@@ -5,14 +5,13 @@ import { NAV_ITEMS } from '@/lib/constants';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings,
+  BookOpen, Bookmark, Map,
 } from 'lucide-react';
 
-// DS-001: Settings added so the BottomNav iconMap stays in sync with NAV_ITEMS
-const iconMap = { LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings } as const;
+const iconMap = { BookOpen, Map, Bookmark } as const;
 
-// Show only the most important 5 items on mobile
-const MOBILE_NAV = NAV_ITEMS.slice(0, 5);
+// All 3 items shown in bottom nav
+const MOBILE_NAV = NAV_ITEMS;
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -54,7 +53,9 @@ export function BottomNav() {
                 aria-hidden="true"
               />
             )}
-            <span className="text-[10px] font-medium leading-none">{item.label}</span>
+            <span className="text-[10px] font-medium leading-none">
+              {item.label === 'Bookmarks' ? 'Saved' : item.label}
+            </span>
             {isActive && (
               <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-saffron-500" aria-hidden="true" />
             )}

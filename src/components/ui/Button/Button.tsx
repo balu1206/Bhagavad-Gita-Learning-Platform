@@ -2,6 +2,13 @@ import { cn } from '@/lib/utils';
 import type { ButtonHTMLAttributes } from 'react';
 import { Spinner } from '../Spinner/Spinner';
 
+/**
+ * Two canonical button styles:
+ *  primary   — filled saffron/orange gradient, white text
+ *  secondary — transparent with saffron border + saffron text
+ *
+ * ghost and danger are kept as aliases for internal use but map to the two styles.
+ */
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -25,27 +32,23 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold',
         'transition-all duration-200 focus:outline-none focus-visible:ring-2',
         'focus-visible:ring-saffron-500 focus-visible:ring-offset-2',
         'disabled:opacity-50 disabled:cursor-not-allowed',
-        // Variants
-        variant === 'primary' && [
-          'bg-gradient-primary text-white shadow-medium',
+        // Primary — filled saffron, white text
+        (variant === 'primary' || variant === 'danger') && [
+          variant === 'danger'
+            ? 'bg-red-600 hover:bg-red-700'
+            : 'bg-gradient-to-r from-saffron-500 to-gold-500',
+          'text-white shadow-medium',
           'hover:shadow-large hover:-translate-y-0.5',
           'active:translate-y-0 active:shadow-soft',
         ],
-        variant === 'secondary' && [
-          'bg-white border-2 border-saffron-500 text-saffron-600',
-          'hover:bg-saffron-50 dark:bg-transparent dark:hover:bg-saffron-900/20',
-        ],
-        variant === 'ghost' && [
-          'bg-transparent border border-warm-100 text-dark-700',
-          'hover:bg-warm-100 dark:border-dark-700 dark:text-dark-200 dark:hover:bg-dark-800',
-        ],
-        variant === 'danger' && [
-          'bg-red-600 text-white shadow-medium',
-          'hover:bg-red-700 hover:shadow-large hover:-translate-y-0.5',
+        // Secondary — transparent with orange border + text
+        (variant === 'secondary' || variant === 'ghost') && [
+          'bg-transparent border-2 border-saffron-500 text-saffron-600 dark:text-saffron-400',
+          'hover:bg-saffron-50 dark:hover:bg-saffron-950/30',
         ],
         // Sizes
         size === 'sm' && 'h-8 px-3 text-sm',

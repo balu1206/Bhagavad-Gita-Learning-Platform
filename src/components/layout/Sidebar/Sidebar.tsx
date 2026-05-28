@@ -5,14 +5,13 @@ import { NAV_ITEMS } from '@/lib/constants';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings,
+  BookOpen, Bookmark, Map,
   ChevronLeft, ChevronRight, Flame,
 } from 'lucide-react';
 import { useState } from 'react';
 
-// DS-001: Settings added to support the canonical 7-item nav
 const iconMap = {
-  LayoutDashboard, BookOpen, Headphones, Bookmark, Map, User, Settings,
+  BookOpen, Map, Bookmark,
 } as const;
 
 interface SidebarProps {

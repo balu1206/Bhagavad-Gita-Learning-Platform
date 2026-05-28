@@ -4,8 +4,6 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { AppShell } from '@/components/layout/AppShell/AppShell';
-import { MiniPlayer } from '@/components/audio/MiniPlayer';
-import { FullPlayerSheet } from '@/components/audio/FullPlayerSheet';
 
 // Routes inside (app) that are publicly browsable without a session
 const PUBLIC_PREFIXES = ['/chapters'];
@@ -25,9 +23,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AppShell>
       {children}
-      {/* Audio player only shown to authenticated users */}
-      {session && <MiniPlayer />}
-      {session && <FullPlayerSheet />}
     </AppShell>
   );
 }

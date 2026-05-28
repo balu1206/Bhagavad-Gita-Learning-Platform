@@ -60,7 +60,13 @@ export default async function VersePage({ params }: PageProps) {
       totalVerses={verse.chapter.verseCount}
       chapterTitle={verse.chapter.title}
     >
-      <VerseProgressTracker verseId={verse.id} chapterId={verse.chapterId} />
+      <VerseProgressTracker
+        verseId={verse.id}
+        chapterId={verse.chapterId}
+        chapterNumber={ch}
+        verseNumber={v}
+        chapterTitle={verse.chapter.title}
+      />
       <VerseDisplay
         chapter={ch}
         verse={v}
@@ -70,6 +76,7 @@ export default async function VersePage({ params }: PageProps) {
         transliteration={verse.transliteration}
         translation={verse.translation}
         commentary={verse.commentary ?? undefined}
+        wordByWord={(verse.wordByWord as { word: string; meaning: string }[] | null) ?? undefined}
       />
     </ReadingShell>
   );
