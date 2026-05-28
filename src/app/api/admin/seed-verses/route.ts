@@ -7,7 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 
 export const maxDuration = 60;
 
@@ -43,10 +42,33 @@ function buildGlobalMap(): Map<string, number> {
   return m;
 }
 
+/**
+ * Parse word_meanings string from GitHub into a JSON array.
+ * The format is typically: "word1 - meaning1\nword2 - meaning2" or similar.
+ * Falls back to null if parsing fails or input is empty.
+ */
+function parseWordMeanings(raw: string | null | undefined): { word: string; meaning: string }[] | null {
+  if (!raw?.trim()) return null;
+  try {
+    // Try splitting on newlines or common separators
+    const lines = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const result: { word: string; meaning: string }[] = [];
+    for (const line of lines) {
+      // Common separators: " - ", " : ", " – "
+      const match = line.match(/^(.+?)\s*[-–:]\s*(.+)$/);
+      if (match) {
+        result.push({ word: match[1].trim(), meaning: match[2].trim() });
+      }
+    }
+    return result.length > 0 ? result : null;
+  } catch {
+    return null;
+  }
+}
+
 interface GVerse       { id: number; chapter_number: number; verse_number: number; text: string; transliteration: string; word_meanings: string; }
 interface GTranslation { verse_id: number; author_id: number; description: string; }
 interface GCommentary  { verse_id: number; author_id: number; description: string; }
-interface VerseRow { chapterId: string; number: number; globalNumber: number; slug: string; sanskrit: string; transliteration: string; wordByWord: string | null; translation: string; commentary: string | null; }
 
 export async function POST(req: NextRequest) {
   let body: { secret?: string; step?: string; from?: number; to?: number };
@@ -55,18 +77,28 @@ export async function POST(req: NextRequest) {
 
   const step = body.step ?? 'chapters';
 
+  // ── Step 1: Seed chapters ──────────────────────────────────────────────────
   if (step === 'chapters') {
     for (const ch of CHAPTERS) {
       const slug = `chapter-${ch.n}-${ch.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
       await prisma.chapter.upsert({
         where:  { number: ch.n },
         update: { verseCount: ch.verseCount },
-        create: { number: ch.n, slug, title: ch.title, titleSanskrit: '', transliteration: '', summary: `${ch.title} — Chapter ${ch.n}.`, verseCount: ch.verseCount },
+        create: {
+          number: ch.n,
+          slug,
+          title: ch.title,
+          titleSanskrit: '',
+          transliteration: '',
+          summary: `${ch.title} — Chapter ${ch.n}.`,
+          verseCount: ch.verseCount,
+        },
       });
     }
     return NextResponse.json({ success: true, step: 'chapters', seeded: CHAPTERS.length });
   }
 
+  // ── Step 2/3: Seed verses ─────────────────────────────────────────────────
   if (step === 'verses') {
     const from = body.from ?? 1;
     const to   = body.to   ?? 18;
@@ -81,36 +113,79 @@ export async function POST(req: NextRequest) {
       fetch(`${GITHUB_RAW}/translation.json`),
       fetch(`${GITHUB_RAW}/commentary.json`),
     ]);
-    if (!vRes.ok || !tRes.ok || !cRes.ok) return NextResponse.json({ error: 'GitHub fetch failed' }, { status: 502 });
+    if (!vRes.ok || !tRes.ok || !cRes.ok) {
+      return NextResponse.json({ error: 'GitHub fetch failed' }, { status: 502 });
+    }
 
     const [allVerses, allTrans, allComm]: [GVerse[], GTranslation[], GCommentary[]] =
       await Promise.all([vRes.json(), tRes.json(), cRes.json()]);
 
     const transMap = new Map<number, string>(
-      allTrans.filter((t: GTranslation) => t.author_id === SIVANANDA_ID).map((t: GTranslation) => [t.verse_id, t.description])
+      allTrans
+        .filter((t: GTranslation) => t.author_id === SIVANANDA_ID)
+        .map((t: GTranslation) => [t.verse_id, t.description])
     );
     const commMap = new Map<number, string>(
-      allComm.filter((c: GCommentary) => c.author_id === SIVANANDA_ID).map((c: GCommentary) => [c.verse_id, c.description])
+      allComm
+        .filter((c: GCommentary) => c.author_id === SIVANANDA_ID)
+        .map((c: GCommentary) => [c.verse_id, c.description])
     );
 
-    const rows: VerseRow[] = allVerses
-      .filter((v: GVerse) => v.chapter_number >= from && v.chapter_number <= to)
-      .map((v: GVerse) => {
-        const chapterId = chMap.get(v.chapter_number);
-        if (!chapterId) return null;
-        const slug = `${v.chapter_number}-${v.verse_number}`;
-        return { chapterId, number: v.verse_number, globalNumber: gMap.get(slug) ?? v.id, slug, sanskrit: v.text.trim(), transliteration: v.transliteration.trim(), wordByWord: v.word_meanings?.trim() || null, translation: (transMap.get(v.id) ?? '').trim(), commentary: commMap.get(v.id)?.trim() ?? null } as VerseRow;
-      })
-      .filter((r): r is VerseRow => r !== null);
+    const verses = allVerses.filter(
+      (v: GVerse) => v.chapter_number >= from && v.chapter_number <= to
+    );
 
-    await prisma.$executeRaw`
-      INSERT INTO "Verse" (id, "chapterId", number, "globalNumber", slug, sanskrit, transliteration, "wordByWord", translation, "translationAuthor", commentary, "commentaryAuthor", "createdAt", "updatedAt")
-      VALUES ${Prisma.join(rows.map(r => Prisma.sql`(gen_random_uuid(), ${r.chapterId}, ${r.number}, ${r.globalNumber}, ${r.slug}, ${r.sanskrit}, ${r.transliteration}, ${r.wordByWord}, ${r.translation}, 'Swami Sivananda', ${r.commentary}, ${r.commentary ? 'Swami Sivananda' : null}, now(), now())`))
-      }
-      ON CONFLICT (slug) DO UPDATE SET sanskrit = EXCLUDED.sanskrit, transliteration = EXCLUDED.transliteration, "wordByWord" = EXCLUDED."wordByWord", translation = EXCLUDED.translation, "translationAuthor" = EXCLUDED."translationAuthor", commentary = EXCLUDED.commentary, "commentaryAuthor" = EXCLUDED."commentaryAuthor", "updatedAt" = now()
-    `;
+    let seeded = 0;
+    let skipped = 0;
 
-    return NextResponse.json({ success: true, step: 'verses', range: `${from}-${to}`, seeded: rows.length });
+    for (const v of verses) {
+      const chapterId = chMap.get(v.chapter_number);
+      if (!chapterId) { skipped++; continue; }
+
+      const slug         = `${v.chapter_number}-${v.verse_number}`;
+      const globalNumber = gMap.get(slug) ?? v.id;
+      const sanskrit     = v.text?.trim() ?? '';
+      const transliteration = v.transliteration?.trim() ?? '';
+      const translation  = (transMap.get(v.id) ?? '').trim();
+      const commentary   = commMap.get(v.id)?.trim() ?? null;
+      const wordByWord   = parseWordMeanings(v.word_meanings);
+
+      await prisma.verse.upsert({
+        where:  { slug },
+        update: {
+          sanskrit,
+          transliteration,
+          wordByWord: wordByWord ?? undefined,
+          translation,
+          translationAuthor: 'Swami Sivananda',
+          commentary,
+          commentaryAuthor: commentary ? 'Swami Sivananda' : null,
+        },
+        create: {
+          chapterId,
+          number: v.verse_number,
+          globalNumber,
+          slug,
+          sanskrit,
+          transliteration,
+          wordByWord: wordByWord ?? undefined,
+          translation,
+          translationAuthor: 'Swami Sivananda',
+          commentary,
+          commentaryAuthor: commentary ? 'Swami Sivananda' : null,
+        },
+      });
+
+      seeded++;
+    }
+
+    return NextResponse.json({
+      success: true,
+      step: 'verses',
+      range: `${from}-${to}`,
+      seeded,
+      skipped,
+    });
   }
 
   return NextResponse.json({ error: 'step must be chapters or verses' }, { status: 400 });
