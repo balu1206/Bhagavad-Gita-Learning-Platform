@@ -2,7 +2,7 @@ import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // Public routes that anyone can access without signing in
-const PUBLIC_PREFIXES = ['/chapters'];
+const PUBLIC_PREFIXES = ['/chapters', '/listen', '/api/verses'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
