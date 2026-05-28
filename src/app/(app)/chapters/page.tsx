@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { BookOpen, Flame } from 'lucide-react';
+import { BookOpen, Flame, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { ChapterCard, type ChapterCardData } from '@/components/chapters/ChapterCard';
 import { ChaptersFilter, type FilterStatus } from '@/components/chapters/ChaptersFilter';
 import { CircularProgress } from '@/components/ui/ProgressBar/ProgressBar';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 
 export default function ChaptersPage() {
+  const { data: session } = useSession();
   const [chapters,  setChapters]  = useState<ChapterCardData[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [query,     setQuery]     = useState('');
@@ -62,14 +65,27 @@ export default function ChaptersPage() {
           </p>
         </div>
 
-        {/* Overall progress ring */}
-        <div className="flex items-center gap-4 bg-white dark:bg-dark-800 rounded-2xl border border-warm-100 dark:border-dark-700 p-4 self-start">
-          <CircularProgress value={overallPct} size={60} strokeWidth={5} />
-          <div>
-            <p className="font-semibold text-dark-900 dark:text-white">{overallPct}% complete</p>
-            <p className="text-sm text-dark-400 dark:text-dark-500">{totalRead} / {totalVerses} verses</p>
+        {/* Progress ring — only for signed-in users */}
+        {session ? (
+          <div className="flex items-center gap-4 bg-white dark:bg-dark-800 rounded-2xl border border-warm-100 dark:border-dark-700 p-4 self-start">
+            <CircularProgress value={overallPct} size={60} strokeWidth={5} />
+            <div>
+              <p className="font-semibold text-dark-900 dark:text-white">{overallPct}% complete</p>
+              <p className="text-sm text-dark-400 dark:text-dark-500">{totalRead} / {totalVerses} verses</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <Link
+            href="/register"
+            className="flex items-center gap-3 bg-gradient-to-r from-saffron-50 to-gold-50 dark:from-saffron-900/20 dark:to-gold-900/10 rounded-2xl border border-saffron-200 dark:border-saffron-800 p-4 self-start hover:shadow-soft transition-shadow"
+          >
+            <Lock className="w-5 h-5 text-saffron-500 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-saffron-700 dark:text-saffron-300 text-sm">Track your progress</p>
+              <p className="text-xs text-saffron-600/70 dark:text-saffron-400/70">Sign up free to save your reading journey</p>
+            </div>
+          </Link>
+        )}
       </div>
 
       {/* Filters */}

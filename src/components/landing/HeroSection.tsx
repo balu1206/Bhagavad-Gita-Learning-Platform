@@ -20,8 +20,8 @@ export function HeroSection() {
           <span>700 verses. One timeless wisdom.</span>
         </div>
 
-        {/* Headline */}
-        <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-bold text-dark-900 dark:text-dark-50 leading-tight mb-6 animate-slide-up">
+        {/* Headline — scales from 2.25rem on tiny screens up to 7xl on desktop */}
+        <h1 className="font-serif text-[2.25rem] xs:text-5xl sm:text-6xl md:text-7xl font-bold text-dark-900 dark:text-dark-50 leading-tight mb-6 animate-slide-up break-words">
           Discover the wisdom
           <br />
           <span className="text-gradient">of Bhagavad Gita</span>
@@ -57,7 +57,7 @@ export function HeroSection() {
         </div>
 
         {/* Stats */}
-        <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-dark-500 dark:text-dark-400 animate-fade-in">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-dark-500 dark:text-dark-400 animate-fade-in">
           {[
             { value: '700', label: 'Verses' },
             { value: '18', label: 'Chapters' },

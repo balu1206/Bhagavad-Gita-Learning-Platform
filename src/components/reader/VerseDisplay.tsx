@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Volume2, Square, ChevronDown, ChevronUp, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
+import { ShareButton } from '@/components/reader/ShareButton';
 import { useToast } from '@/components/ui/Toast/Toast';
 
 interface VerseDisplayProps {
@@ -112,6 +113,7 @@ export function VerseDisplay({
             {verseId && chapterId && (
               <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
             )}
+            <ShareButton chapter={chapter} verse={verse} sanskrit={sanskrit} translation={translation} />
           </div>
         </div>
 

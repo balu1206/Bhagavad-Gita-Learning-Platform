@@ -28,36 +28,57 @@ const devanagari = Noto_Serif_Devanagari({
   weight: ['400', '600'],
 });
 
+const BASE_URL = 'https://bhagavad-gita-learning-platform.vercel.app';
+
 export const metadata: Metadata = {
   title: {
-    default: 'Gita Learning — Ancient Wisdom, Modern Journey',
-    template: '%s | Gita Learning',
+    default: 'GitaPath — Read the Bhagavad Gita Online | Sanskrit, Translation & Commentary',
+    template: '%s | GitaPath',
   },
   description:
-    'Explore the Bhagavad Gita through immersive reading, Sanskrit audio, and a guided beginner journey. 700 verses, 18 chapters, 8-step learning path.',
+    'Read all 700 verses of the Bhagavad Gita with Sanskrit text, transliteration, English translation and Sivananda commentary. Free, beautiful, and built for modern seekers.',
   keywords: [
-    'Bhagavad Gita', 'Sanskrit', 'spirituality', 'Hinduism',
-    'yoga', 'meditation', 'dharma', 'karma', 'learning', 'Krishna', 'Arjuna',
+    'Bhagavad Gita', 'Gita online', 'read Bhagavad Gita', 'Sanskrit verses',
+    'spirituality', 'Hinduism', 'yoga', 'meditation', 'dharma', 'karma',
+    'Krishna', 'Arjuna', 'Sivananda', 'BG 2.47', 'shloka', 'verse of the day',
   ],
-  authors: [{ name: 'Gita Learning' }],
-  creator: 'Gita Learning',
-  metadataBase: new URL('https://bhagavad-gita-learning-platform.vercel.app'),
+  authors: [{ name: 'GitaPath' }],
+  creator: 'GitaPath',
+  metadataBase: new URL(BASE_URL),
+  alternates: {
+    canonical: BASE_URL,
+  },
   openGraph: {
-    title: 'Gita Learning — Ancient Wisdom, Modern Journey',
-    description: 'A guided journey through the Bhagavad Gita with Sanskrit audio, bookmarks, and personalised learning paths.',
+    title: 'GitaPath — Read the Bhagavad Gita Online',
+    description: 'All 700 verses with Sanskrit, transliteration, English translation and commentary. Free for everyone.',
     type: 'website',
+    url: BASE_URL,
     locale: 'en_US',
-    siteName: 'Gita Learning',
+    siteName: 'GitaPath',
+    images: [
+      {
+        url: `${BASE_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'GitaPath — Ancient Wisdom, Modern Journey',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Gita Learning — Ancient Wisdom, Modern Journey',
-    description: 'Ancient wisdom, modern journey. 700 verses, Sanskrit audio, guided path.',
+    title: 'GitaPath — Read the Bhagavad Gita Online',
+    description: 'All 700 verses, free. Sanskrit · Transliteration · English Translation · Commentary.',
+    images: [`${BASE_URL}/og-image.png`],
   },
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
   },
 };
 
