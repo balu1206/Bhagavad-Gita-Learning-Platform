@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Share2, Link2, Check, Twitter, MessageCircle, X } from 'lucide-react';
+import { Share2, Link2, Check, MessageCircle, X } from 'lucide-react';
+
+// X (formerly Twitter) logo — removed from lucide-react in newer versions
+function XLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.731-8.843L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 import { useToast } from '@/components/ui/Toast/Toast';
 import { cn } from '@/lib/utils';
 
@@ -126,7 +135,7 @@ export function ShareButton({ chapter, verse, sanskrit, translation }: ShareButt
               onClick={shareTwitter}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm hover:bg-warm-50 dark:hover:bg-dark-700 transition-colors text-left"
             >
-              <Twitter className="w-4 h-4 flex-shrink-0 text-sky-500" />
+              <XLogo className="w-4 h-4 flex-shrink-0 text-dark-700 dark:text-dark-200" />
               <span className="text-dark-700 dark:text-dark-200">Post on X / Twitter</span>
             </button>
 
