@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 60;
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Build rows for this chapter range
-    const rows = allVerses
+    const rows: Prisma.VerseCreateManyInput[] = allVerses
       .filter((v: GVerse) => v.chapter_number >= from && v.chapter_number <= to)
       .flatMap((v: GVerse) => {
         const chapterId = chMap.get(v.chapter_number);
@@ -134,7 +135,8 @@ export async function POST(req: NextRequest) {
         const globalNumber = gMap.get(slug) ?? v.id;
         const translation  = (transMap.get(v.id) ?? '').trim();
         const commentary   = commMap.get(v.id)?.trim() ?? null;
-        const wordByWord   = parseWordMeanings(v.word_meanings) as unknown;
+        const parsed       = parseWordMeanings(v.word_meanings);
+        const wordByWord   = parsed as Prisma.InputJsonValue | null;
         return [{
           chapterId,
           number:            v.verse_number,
@@ -142,7 +144,7 @@ export async function POST(req: NextRequest) {
           slug,
           sanskrit:          v.text?.trim() ?? '',
           transliteration:   v.transliteration?.trim() ?? '',
-          wordByWord,
+          wordByWord:        wordByWord ?? Prisma.DbNull,
           translation,
           translationAuthor: 'Swami Sivananda',
           commentary,
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
     );
 
     await prisma.verse.deleteMany({ where: { chapterId: { in: chapterIds } } });
-    const result = await prisma.verse.createMany({ data: rows as Parameters<typeof prisma.verse.createMany>[0]['data'] });
+    const result = await prisma.verse.createMany({ data: rows });
 
     return NextResponse.json({
       success: true,
