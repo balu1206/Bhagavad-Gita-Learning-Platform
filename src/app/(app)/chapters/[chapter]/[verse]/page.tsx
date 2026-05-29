@@ -77,6 +77,9 @@ export default async function VersePage({ params }: PageProps) {
         translation={verse.translation}
         commentary={verse.commentary ?? undefined}
         wordByWord={(verse.wordByWord as { word: string; meaning: string }[] | null) ?? undefined}
+        audioSanskrit={verse.audioSanskrit}
+        audioTranslation={verse.audioTranslation}
+        audioCommentary={verse.audioCommentary}
       />
     </ReadingShell>
   );

@@ -150,8 +150,13 @@ model Verse {
   commentary    String? @db.Text
   commentaryAuthor String?
 
-  // Audio
+  // Audio (legacy — kept for backwards compat)
   audioUrl      String?
+
+  // Pre-generated audio URLs (Supabase Storage)
+  audioSanskrit    String?   // MP3 URL for Sanskrit verse reading
+  audioTranslation String?   // MP3 URL for English translation reading
+  audioCommentary  String?   // MP3 URL for commentary reading
 
   chapter       Chapter       @relation(fields: [chapterId], references: [id])
   bookmarks     Bookmark[]

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Volume2, Play, Pause, Square, ChevronDown, ChevronUp, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Volume2, Play, Pause, Square, ChevronDown, ChevronUp, Eye, EyeOff, Loader2, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BookmarkButton } from '@/components/bookmarks/BookmarkButton';
 import { ShareButton } from '@/components/reader/ShareButton';
@@ -20,50 +20,32 @@ interface VerseDisplayProps {
   translation: string;
   commentary?: string;
   wordByWord?: WordMeaning[];
+  // Pre-generated audio URLs from Supabase Storage
+  audioSanskrit?: string | null;
+  audioTranslation?: string | null;
+  audioCommentary?: string | null;
 }
 
 type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused';
 type AudioMode   = 'sanskrit' | 'translation' | 'full';
 type ReadSection = 'sanskrit' | 'translation' | 'commentary';
 
-// ── Text tokeniser for per-word highlight ─────────────────────────────────────
-interface Token { text: string; start: number; isWord: boolean; }
-function tokenize(text: string): Token[] {
-  const toks: Token[] = [];
-  const re = /\S+|\s+/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    toks.push({ text: m[0], start: m.index, isWord: /\S/.test(m[0]) });
-  }
-  return toks;
+// ─── Sequence definition ──────────────────────────────────────────────────────
+interface SeqStep { section: ReadSection; url: string; label: string; }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// ── Inline highlighted text renderer ─────────────────────────────────────────
-function HighlightedText({
-  text, charIdx, active, className,
-}: { text: string; charIdx: number; active: boolean; className?: string }) {
-  const tokens = useMemo(() => tokenize(text), [text]);
-
-  if (!active || charIdx < 0) return <span className={className}>{text}</span>;
-
-  return (
-    <span className={className}>
-      {tokens.map((tok, i) => {
-        const hit = tok.isWord && charIdx >= tok.start && charIdx < tok.start + tok.text.length;
-        return hit ? (
-          <mark key={i} className="bg-saffron-200 dark:bg-saffron-800/80 text-dark-900 dark:text-white rounded-sm not-italic">
-            {tok.text}
-          </mark>
-        ) : <span key={i}>{tok.text}</span>;
-      })}
-    </span>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 export function VerseDisplay({
   chapter, verse, verseId, chapterId,
   sanskrit, transliteration, translation, commentary, wordByWord,
+  audioSanskrit, audioTranslation, audioCommentary,
 }: VerseDisplayProps) {
   const { toast } = useToast();
 
@@ -73,30 +55,23 @@ export function VerseDisplay({
   const [wordMeaningsOpen, setWordMeaningsOpen] = useState(false);
 
   // Audio state
-  const [audioStatus,      setAudioStatus]      = useState<AudioStatus>('idle');
-  const [audioMode,        setAudioMode]        = useState<AudioMode>('sanskrit');
-  const [audioSpeed,       setAudioSpeed]       = useState<0.75 | 1 | 1.5>(1);
-  const [highlightCharIdx, setHighlightCharIdx] = useState(-1);
-  const [highlightSection, setHighlightSection] = useState<ReadSection | null>(null);
+  const [audioStatus,    setAudioStatus]    = useState<AudioStatus>('idle');
+  const [audioMode,      setAudioMode]      = useState<AudioMode>('sanskrit');
+  const [audioSpeed,     setAudioSpeed]     = useState<0.75 | 1 | 1.5>(1);
+  const [currentSection, setCurrentSection] = useState<ReadSection | null>(null);
+  const [currentTime,    setCurrentTime]    = useState(0);
+  const [duration,       setDuration]       = useState(0);
 
-  // Stable refs (avoid stale closures in async callbacks)
-  const utteranceRef      = useRef<SpeechSynthesisUtterance | null>(null);
-  const sequenceRef       = useRef<Array<{ text: string; section: ReadSection }>>([]);
-  const seqIdxRef         = useRef(0);
-  const speedRef          = useRef<number>(audioSpeed);
-  const mountedRef        = useRef(true);
-  // Pause/resume: record char offset so we can re-speak from that position
-  const lastCharIdxRef    = useRef(-1);
-  const pauseOffsetRef    = useRef(0);
-  // Timer-based fallback for Sanskrit (onboundary doesn't fire for Devanagari in Chrome)
-  const fallbackTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Track when speech actually started + the text length for elapsed-time estimation
-  const speakStartTimeRef = useRef<number>(0);
-  const speakTextLenRef   = useRef<number>(0);
-  const speakSectionRef   = useRef<ReadSection>('sanskrit');
-  speedRef.current        = audioSpeed;
+  // HTML5 Audio ref — single element, we swap src between sequence steps
+  const audioRef   = useRef<HTMLAudioElement | null>(null);
+  const seqRef     = useRef<SeqStep[]>([]);
+  const seqIdxRef  = useRef(0);
+  const mountedRef = useRef(true);
 
-  // Word map for transliteration hover tooltips
+  // Check which audio URLs are available
+  const hasAudio = !!(audioSanskrit || audioTranslation || audioCommentary);
+
+  // Word map for transliteration tooltips
   const wordMap = useMemo(() => {
     const m = new Map<string, string>();
     wordByWord?.forEach(({ word, meaning }) =>
@@ -104,217 +79,165 @@ export function VerseDisplay({
     return m;
   }, [wordByWord]);
 
-  // Cleanup on unmount
+  // ── Audio element setup ───────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audioRef.current = audio;
+
+    const onLoadStart  = () => { if (mountedRef.current) setAudioStatus('loading'); };
+    const onCanPlay    = () => { if (mountedRef.current) setAudioStatus(s => s === 'loading' ? 'playing' : s); };
+    const onPlay       = () => { if (mountedRef.current) setAudioStatus('playing'); };
+    const onPause      = () => { if (mountedRef.current && audio.currentTime < audio.duration - 0.1) setAudioStatus('paused'); };
+    const onTimeUpdate = () => { if (mountedRef.current) setCurrentTime(audio.currentTime); };
+    const onDurationChange = () => { if (mountedRef.current) setDuration(audio.duration); };
+    const onError      = () => {
+      if (!mountedRef.current) return;
+      toast({ message: 'Could not load audio', variant: 'error' });
+      setAudioStatus('idle');
+      setCurrentSection(null);
+    };
+    const onEnded = () => {
+      if (!mountedRef.current) return;
+      // Advance to next step in sequence
+      const nextIdx = seqIdxRef.current + 1;
+      if (nextIdx < seqRef.current.length) {
+        seqIdxRef.current = nextIdx;
+        const next = seqRef.current[nextIdx];
+        setCurrentSection(next.section);
+        if (next.section === 'commentary') setCommentaryOpen(true);
+        audio.src = next.url;
+        audio.playbackRate = audioRef.current?.playbackRate ?? 1;
+        audio.play().catch(() => {});
+      } else {
+        // Sequence complete
+        setAudioStatus('idle');
+        setCurrentSection(null);
+        setCurrentTime(0);
+        setDuration(0);
+      }
+    };
+
+    audio.addEventListener('loadstart',      onLoadStart);
+    audio.addEventListener('canplay',        onCanPlay);
+    audio.addEventListener('play',           onPlay);
+    audio.addEventListener('pause',          onPause);
+    audio.addEventListener('timeupdate',     onTimeUpdate);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('error',         onError);
+    audio.addEventListener('ended',          onEnded);
+
     return () => {
       mountedRef.current = false;
-      fallbackTimersRef.current.forEach(clearTimeout);
-      fallbackTimersRef.current = [];
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      audio.pause();
+      audio.src = '';
+      audio.removeEventListener('loadstart',      onLoadStart);
+      audio.removeEventListener('canplay',        onCanPlay);
+      audio.removeEventListener('play',           onPlay);
+      audio.removeEventListener('pause',          onPause);
+      audio.removeEventListener('timeupdate',     onTimeUpdate);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('error',         onError);
+      audio.removeEventListener('ended',          onEnded);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-open commentary accordion when it starts being read aloud
+  // Auto-open commentary when it starts playing
   useEffect(() => {
-    if (highlightSection === 'commentary') setCommentaryOpen(true);
-  }, [highlightSection]);
+    if (currentSection === 'commentary') setCommentaryOpen(true);
+  }, [currentSection]);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const clearFallbackTimers = useCallback(() => {
-    fallbackTimersRef.current.forEach(clearTimeout);
-    fallbackTimersRef.current = [];
-  }, []);
-
-  // ── Core speak function ───────────────────────────────────────────────────
-  // startOffset: resume mid-text by skipping the first N chars.
-  const speakText = useCallback((
-    text: string,
-    section: ReadSection,
-    rate: number,
-    startOffset: number,
-    onDone: () => void,
-  ) => {
-    if (!('speechSynthesis' in window)) return;
-    clearFallbackTimers();
-    window.speechSynthesis.cancel();
-    setHighlightSection(section);
-    setHighlightCharIdx(-1);
-    lastCharIdxRef.current = startOffset > 0 ? startOffset : -1;
-    speakStartTimeRef.current = 0;
-    speakTextLenRef.current   = text.length;
-    speakSectionRef.current   = section;
-    setAudioStatus('loading');
-
-    // When resuming, speak only the remaining text; adjust charIndex by offset.
-    const utterText = startOffset > 0 ? text.substring(startOffset) : text;
-
-    const u = new SpeechSynthesisUtterance(utterText);
-    const voices     = window.speechSynthesis.getVoices();
-    const isSanskrit = section === 'sanskrit';
-
-    const voice = isSanskrit
-      ? (voices.find(v => v.lang.startsWith('sa'))
-          ?? voices.find(v => v.lang.startsWith('hi'))
-          ?? voices.find(v => v.lang.startsWith('mr'))
-          ?? null)
-      : (voices.find(v => v.lang.startsWith('en')) ?? null);
-
-    if (voice) u.voice = voice;
-    u.lang  = voice?.lang ?? (isSanskrit ? 'hi-IN' : 'en-US');
-    u.rate  = rate;
-    u.pitch = 1.0;
-
-    // Track whether onboundary fires (it won't for Devanagari in Chrome).
-    let boundaryFired = false;
-
-    u.onstart = () => {
-      if (!mountedRef.current) return;
-      speakStartTimeRef.current = Date.now();
-      setAudioStatus('playing');
-
-      // ── Timer-based fallback for word highlighting ──────────────────────
-      // Schedule a highlight update for every word in utterText.
-      // If onboundary fires later we'll cancel these and switch to event-based.
-      const tokens = tokenize(utterText);
-      // Sanskrit chars-per-second is slower than English.
-      const charsPerSec = isSanskrit ? 10 * rate : 15 * rate;
-      const ids: ReturnType<typeof setTimeout>[] = [];
-      tokens.forEach(tok => {
-        if (!tok.isWord) return;
-        const delayMs = (tok.start / charsPerSec) * 1000;
-        const id = setTimeout(() => {
-          if (!mountedRef.current || boundaryFired) return;
-          const absIdx = startOffset + tok.start;
-          lastCharIdxRef.current = absIdx;
-          setHighlightCharIdx(absIdx);
-        }, delayMs);
-        ids.push(id);
-      });
-      fallbackTimersRef.current = ids;
-    };
-
-    // onboundary fires at each word boundary (English only in Chrome).
-    // If it fires, cancel the fallback timers and switch to event-based.
-    u.onboundary = (e) => {
-      if (e.name !== 'word' || !mountedRef.current) return;
-      if (!boundaryFired) {
-        boundaryFired = true;
-        clearFallbackTimers();
-      }
-      const absIdx = startOffset + e.charIndex;
-      lastCharIdxRef.current = absIdx;
-      requestAnimationFrame(() => {
-        if (mountedRef.current) setHighlightCharIdx(absIdx);
-      });
-    };
-
-    u.onend = () => {
-      if (!mountedRef.current) return;
-      clearFallbackTimers();
-      setHighlightCharIdx(-1);
-      onDone();
-    };
-
-    u.onerror = (e) => {
-      if (!mountedRef.current) return;
-      clearFallbackTimers();
-      if (e.error !== 'canceled' && e.error !== 'interrupted') {
-        toast({ message: 'Playback error — try again', variant: 'error' });
-      }
-      setAudioStatus('idle');
-      setHighlightSection(null);
-      setHighlightCharIdx(-1);
-    };
-
-    utteranceRef.current = u;
-    window.speechSynthesis.speak(u);
-    // Chrome sometimes doesn't fire onstart — treat as playing after 400ms
-    setTimeout(() => {
-      if (mountedRef.current) setAudioStatus(s => s === 'loading' ? 'playing' : s);
-    }, 400);
-  }, [toast, clearFallbackTimers]);
-
-  // ── Sequence player (chains multiple sections for Full mode) ──────────────
-  // offset: char offset into the current step's text (used when resuming).
-  const playStep = useCallback((idx: number, offset = 0) => {
-    const seq = sequenceRef.current;
-    if (idx >= seq.length) {
-      if (mountedRef.current) {
-        setAudioStatus('idle');
-        setHighlightSection(null);
-        setHighlightCharIdx(-1);
-      }
-      return;
+  // ── Build sequence based on mode ──────────────────────────────────────────
+  const buildSequence = useCallback((mode: AudioMode): SeqStep[] => {
+    const steps: SeqStep[] = [];
+    if ((mode === 'sanskrit' || mode === 'full') && audioSanskrit) {
+      steps.push({ section: 'sanskrit',    url: audioSanskrit,    label: 'Sanskrit verse' });
     }
-    speakText(seq[idx].text, seq[idx].section, speedRef.current, offset, () => {
-      seqIdxRef.current = idx + 1;
-      pauseOffsetRef.current = 0; // reset offset for next step
-      // Small pause (700ms) between sections
-      setTimeout(() => { if (mountedRef.current) playStep(idx + 1, 0); }, 700);
-    });
-  }, [speakText]);
+    if ((mode === 'translation' || mode === 'full') && audioTranslation) {
+      steps.push({ section: 'translation', url: audioTranslation, label: 'Translation' });
+    }
+    if (mode === 'full' && audioCommentary) {
+      steps.push({ section: 'commentary',  url: audioCommentary,  label: 'Commentary' });
+    }
+    return steps;
+  }, [audioSanskrit, audioTranslation, audioCommentary]);
 
-  // ── Public controls ───────────────────────────────────────────────────────
+  // ── Controls ──────────────────────────────────────────────────────────────
   const handlePlay = useCallback((modeOverride?: AudioMode) => {
-    if (!('speechSynthesis' in window)) {
-      toast({ message: 'Audio not supported in this browser', variant: 'warning' });
+    const mode = modeOverride ?? audioMode;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!hasAudio) {
+      toast({ message: 'Audio not yet generated for this verse. Run the generation script first.', variant: 'warning' });
       return;
     }
-    const mode = modeOverride ?? audioMode;
-    if (mode === 'sanskrit') {
-      sequenceRef.current = [{ text: sanskrit, section: 'sanskrit' }];
-    } else if (mode === 'translation') {
-      sequenceRef.current = [{ text: translation, section: 'translation' }];
-    } else {
-      // Full: Sanskrit → Translation → Commentary (if exists)
-      sequenceRef.current = [
-        { text: sanskrit,    section: 'sanskrit'    },
-        { text: translation, section: 'translation' },
-        ...(commentary ? [{ text: commentary, section: 'commentary' as ReadSection }] : []),
-      ];
+
+    const seq = buildSequence(mode);
+    if (seq.length === 0) {
+      toast({ message: 'No audio available for this selection', variant: 'warning' });
+      return;
     }
+
+    seqRef.current  = seq;
     seqIdxRef.current = 0;
-    playStep(0);
-  }, [audioMode, sanskrit, translation, commentary, playStep, toast]);
+    const first = seq[0];
+    setCurrentSection(first.section);
+    if (first.section === 'commentary') setCommentaryOpen(true);
+    audio.src = first.url;
+    audio.playbackRate = audioSpeed;
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      toast({ message: 'Playback blocked — tap Play again', variant: 'warning' });
+    });
+  }, [audioMode, audioSpeed, buildSequence, hasAudio, toast]);
 
   const handlePause = useCallback(() => {
-    if (!('speechSynthesis' in window)) return;
-    // speechSynthesis.pause() is broken in Chrome (restarts from beginning).
-    // Instead, cancel the current utterance and record where we stopped so
-    // handleResume can re-speak from that offset.
-    clearFallbackTimers();
-
-    // Prefer the last char index from onboundary or fallback timers.
-    // If no timer has fired yet, estimate position from elapsed time.
-    let offset = lastCharIdxRef.current >= 0 ? lastCharIdxRef.current : 0;
-    if (offset === 0 && speakStartTimeRef.current > 0) {
-      const elapsedSec = (Date.now() - speakStartTimeRef.current) / 1000;
-      const isSanskrit = speakSectionRef.current === 'sanskrit';
-      const charsPerSec = isSanskrit ? 10 * speedRef.current : 15 * speedRef.current;
-      const estimated = Math.floor(elapsedSec * charsPerSec);
-      offset = Math.min(estimated, Math.max(0, speakTextLenRef.current - 10));
-    }
-    pauseOffsetRef.current = offset;
-    window.speechSynthesis.cancel();
-    setAudioStatus('paused');
-  }, [clearFallbackTimers]);
+    audioRef.current?.pause();
+  }, []);
 
   const handleResume = useCallback(() => {
-    // Re-speak the current sequence step starting from the saved char offset.
-    playStep(seqIdxRef.current, pauseOffsetRef.current);
-  }, [playStep]);
+    audioRef.current?.play().catch(() => {});
+  }, []);
 
   const handleStop = useCallback(() => {
-    clearFallbackTimers();
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    pauseOffsetRef.current = 0;
-    lastCharIdxRef.current = -1;
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = '';
+    seqRef.current = [];
+    seqIdxRef.current = 0;
     setAudioStatus('idle');
-    setHighlightSection(null);
-    setHighlightCharIdx(-1);
-    sequenceRef.current = [];
-  }, [clearFallbackTimers]);
+    setCurrentSection(null);
+    setCurrentTime(0);
+    setDuration(0);
+  }, []);
+
+  const handleSkip = useCallback(() => {
+    const nextIdx = seqIdxRef.current + 1;
+    const audio = audioRef.current;
+    if (!audio || nextIdx >= seqRef.current.length) { handleStop(); return; }
+    seqIdxRef.current = nextIdx;
+    const next = seqRef.current[nextIdx];
+    setCurrentSection(next.section);
+    audio.src = next.url;
+    audio.playbackRate = audioSpeed;
+    audio.play().catch(() => {});
+  }, [audioSpeed, handleStop]);
+
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Number(e.target.value);
+  }, []);
+
+  const handleSpeedChange = useCallback((spd: 0.75 | 1 | 1.5) => {
+    setAudioSpeed(spd);
+    if (audioRef.current) audioRef.current.playbackRate = spd;
+  }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isIdle    = audioStatus === 'idle';
@@ -328,7 +251,7 @@ export function VerseDisplay({
     commentary:  'Commentary',
   };
 
-  // ── Transliteration with word tooltips ────────────────────────────────────
+  // ── Transliteration with tooltips ─────────────────────────────────────────
   function renderTranslitLine(line: string): React.ReactNode {
     if (!wordByWord?.length) return line;
     return line.split(/(\s+)/).map((tok, i) => {
@@ -379,7 +302,7 @@ export function VerseDisplay({
               {showTranslit ? 'Hide' : 'Show'} transliteration
             </button>
 
-            {/* Quick listen shortcut → plays Sanskrit, or stops if already going */}
+            {/* Quick listen shortcut */}
             <button
               onClick={() => isIdle ? handlePlay('sanskrit') : handleStop()}
               className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors"
@@ -400,14 +323,14 @@ export function VerseDisplay({
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border border-warm-200 dark:border-dark-700">
-          {/* Sanskrit text — highlighted word-by-word while speaking */}
+        <div className={cn(
+          'bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border transition-colors duration-300',
+          currentSection === 'sanskrit' && !isIdle
+            ? 'border-saffron-400 dark:border-saffron-600 shadow-sm'
+            : 'border-warm-200 dark:border-dark-700',
+        )}>
           <p className="font-sanskrit text-xl sm:text-2xl md:text-3xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
-            <HighlightedText
-              text={sanskrit}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'sanskrit'}
-            />
+            {sanskrit}
           </p>
 
           {showTranslit && (
@@ -457,13 +380,14 @@ export function VerseDisplay({
         <h2 className="text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-4">
           Translation
         </h2>
-        <blockquote className="border-l-4 border-saffron-400 dark:border-saffron-600 pl-6 py-2">
+        <blockquote className={cn(
+          'border-l-4 pl-6 py-2 transition-colors duration-300',
+          currentSection === 'translation' && !isIdle
+            ? 'border-saffron-400 dark:border-saffron-500'
+            : 'border-saffron-400 dark:border-saffron-600',
+        )}>
           <p className="text-dark-800 dark:text-dark-100 text-lg leading-relaxed font-serif">
-            &ldquo;<HighlightedText
-              text={translation}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'translation'}
-            />&rdquo;
+            &ldquo;{translation}&rdquo;
           </p>
           <footer className="mt-3 text-sm text-dark-400 dark:text-dark-500">
             &mdash; Swami Sivananda, <cite>The Bhagavad Gita</cite> (Divine Life Society)
@@ -479,8 +403,16 @@ export function VerseDisplay({
             className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-warm-50 dark:bg-dark-800 border border-warm-200 dark:border-dark-700 hover:border-saffron-300 dark:hover:border-saffron-700 transition-colors group"
             aria-expanded={commentaryOpen}
           >
-            <span className="text-sm font-semibold text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
+            <span className={cn(
+              'text-sm font-semibold transition-colors',
+              currentSection === 'commentary' && !isIdle
+                ? 'text-saffron-600 dark:text-saffron-400'
+                : 'text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400',
+            )}>
               Commentary
+              {currentSection === 'commentary' && !isIdle && (
+                <span className="ml-2 text-xs font-normal animate-pulse">▶ playing</span>
+              )}
             </span>
             {commentaryOpen
               ? <ChevronUp className="w-4 h-4 text-dark-400" />
@@ -490,25 +422,10 @@ export function VerseDisplay({
             'overflow-hidden transition-all duration-300 ease-in-out',
             commentaryOpen ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0',
           )}>
-            <div className="px-4 py-2">
-              {highlightSection === 'commentary' ? (
-                /*
-                 * While reading commentary, render as a SINGLE block so that
-                 * charIndex from onboundary aligns correctly with the text string.
-                 */
-                <HighlightedText
-                  text={commentary}
-                  charIdx={highlightCharIdx}
-                  active
-                  className="text-dark-600 dark:text-dark-300 leading-relaxed whitespace-pre-wrap"
-                />
-              ) : (
-                <div className="space-y-3">
-                  {commentary.split('\n\n').map((para, i) => (
-                    <p key={i} className="text-dark-600 dark:text-dark-300 leading-relaxed">{para}</p>
-                  ))}
-                </div>
-              )}
+            <div className="px-4 py-2 space-y-3">
+              {commentary.split('\n\n').map((para, i) => (
+                <p key={i} className="text-dark-600 dark:text-dark-300 leading-relaxed">{para}</p>
+              ))}
             </div>
           </div>
         </section>
@@ -517,63 +434,89 @@ export function VerseDisplay({
       {/* ── Audio Player ── */}
       <section aria-label="Audio recitation" className="rounded-2xl border border-warm-200 dark:border-dark-700 bg-white dark:bg-dark-800 overflow-hidden">
 
-        {/* Header strip */}
+        {/* Header */}
         <div className="flex items-center gap-2 px-4 pt-3.5 pb-3 border-b border-warm-100 dark:border-dark-700">
           <Volume2 className="w-4 h-4 text-saffron-500 shrink-0" />
           <span className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-widest flex-1">
-            Sanskrit Recitation
+            Audio Recitation
           </span>
-          {/* Live status badge */}
-          {!isIdle && (
+          {!isIdle && currentSection && (
             <span className={cn(
               'text-xs font-medium px-2 py-0.5 rounded-full',
               isPaused
                 ? 'bg-dark-100 dark:bg-dark-700 text-dark-500 dark:text-dark-400'
                 : 'bg-saffron-50 dark:bg-saffron-900/30 text-saffron-600 dark:text-saffron-400',
             )}>
-              {isPaused
-                ? `⏸ Paused · ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`
-                : isLoading
-                ? '⌛ Loading…'
-                : `▶ ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`}
+              {isPaused ? '⏸' : isLoading ? '⌛' : '▶'} {SECTION_LABEL[currentSection]}
             </span>
           )}
         </div>
 
         <div className="p-4 space-y-3">
 
-          {/* What to read — mode selector */}
-          <div className="flex gap-1.5">
-            {([
-              { id: 'sanskrit'    as AudioMode, label: 'Sanskrit'     },
-              { id: 'translation' as AudioMode, label: 'Translation'  },
-              { id: 'full'        as AudioMode, label: 'Full reading' },
-            ]).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => { if (isIdle) setAudioMode(id); }}
-                disabled={!isIdle}
-                className={cn(
-                  'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                  audioMode === id
-                    ? 'bg-saffron-500 text-white border-saffron-500'
-                    : 'border-warm-200 dark:border-dark-700 text-dark-500 dark:text-dark-400 hover:border-saffron-300 dark:hover:border-saffron-600 disabled:opacity-40 disabled:cursor-not-allowed',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Mode selector — only shown when idle */}
+          {isIdle && (
+            <div className="flex gap-1.5">
+              {([
+                { id: 'sanskrit'    as AudioMode, label: 'Sanskrit',     available: !!audioSanskrit },
+                { id: 'translation' as AudioMode, label: 'Translation',  available: !!audioTranslation },
+                { id: 'full'        as AudioMode, label: 'Full reading', available: !!(audioSanskrit || audioTranslation || audioCommentary) },
+              ]).map(({ id, label, available }) => (
+                <button
+                  key={id}
+                  onClick={() => setAudioMode(id)}
+                  disabled={!available}
+                  title={available ? undefined : 'Audio not yet generated'}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                    audioMode === id && available
+                      ? 'bg-saffron-500 text-white border-saffron-500'
+                      : available
+                      ? 'border-warm-200 dark:border-dark-700 text-dark-500 dark:text-dark-400 hover:border-saffron-300 dark:hover:border-saffron-600'
+                      : 'border-warm-200 dark:border-dark-700 text-dark-300 dark:text-dark-600 cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Controls row */}
+          {/* Progress bar — shown while playing/paused */}
+          {!isIdle && (
+            <div className="space-y-1">
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={handleSeek}
+                className="w-full h-1.5 accent-saffron-500 cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-dark-400 dark:text-dark-500">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
           <div className="flex items-center gap-2">
 
             {isIdle && (
               <button
                 onClick={() => handlePlay()}
-                className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow hover:-translate-y-0.5 transition-all"
+                disabled={!hasAudio}
+                title={hasAudio ? undefined : 'Audio not yet generated for this verse'}
+                className={cn(
+                  'flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold transition-all',
+                  hasAudio
+                    ? 'bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow hover:-translate-y-0.5'
+                    : 'bg-warm-100 dark:bg-dark-700 text-dark-400 dark:text-dark-500 cursor-not-allowed',
+                )}
               >
-                <Play className="w-4 h-4 fill-current" /> Play
+                <Play className="w-4 h-4 fill-current" />
+                {hasAudio ? 'Play' : 'Audio coming soon'}
               </button>
             )}
 
@@ -591,6 +534,16 @@ export function VerseDisplay({
                 >
                   <Pause className="w-4 h-4 fill-current" /> Pause
                 </button>
+                {seqRef.current.length > 1 && (
+                  <button
+                    onClick={handleSkip}
+                    className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-saffron-300 hover:text-saffron-500 transition-colors"
+                    aria-label="Skip to next section"
+                    title="Skip to next section"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={handleStop}
                   className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-800 dark:hover:text-red-400 transition-colors"
@@ -622,12 +575,12 @@ export function VerseDisplay({
             {/* Speed selector */}
             <div className={cn(
               'flex items-center rounded-lg border border-warm-200 dark:border-dark-700 overflow-hidden text-xs font-medium',
-              isIdle ? 'ml-2' : 'ml-auto',
+              isIdle ? 'ml-auto' : '',
             )}>
               {([0.75, 1, 1.5] as const).map(spd => (
                 <button
                   key={spd}
-                  onClick={() => { setAudioSpeed(spd); speedRef.current = spd; }}
+                  onClick={() => handleSpeedChange(spd)}
                   className={cn(
                     'px-2.5 py-1.5 transition-colors',
                     audioSpeed === spd
@@ -642,15 +595,17 @@ export function VerseDisplay({
           </div>
 
           {/* Full reading note */}
-          {audioMode === 'full' && isIdle && (
+          {audioMode === 'full' && isIdle && hasAudio && (
             <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-              Reads Sanskrit → Translation{commentary ? ' → Commentary' : ''} in sequence
+              Plays Sanskrit → Translation{audioCommentary ? ' → Commentary' : ''} in sequence
             </p>
           )}
 
-          <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-            Uses browser speech synthesis · Best in Chrome or Edge
-          </p>
+          {!hasAudio && (
+            <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
+              Audio files are being generated — check back soon
+            </p>
+          )}
         </div>
       </section>
 
@@ -662,604 +617,6 @@ export function VerseDisplay({
         <p className="text-dark-700 dark:text-dark-200 text-sm leading-relaxed">
           How does this verse speak to something you are navigating in your life right now? Sit with it for a moment before moving on.
         </p>
-      </section>
-
-    </article>
-  );
-}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowTranslit(v => !v)}
-              className="flex items-center gap-1.5 text-xs text-dark-400 hover:text-dark-600 dark:hover:text-dark-200 transition-colors"
-              aria-label={showTranslit ? 'Hide transliteration' : 'Show transliteration'}
-            >
-              {showTranslit ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {showTranslit ? 'Hide' : 'Show'} transliteration
-            </button>
-
-            {/* Quick listen shortcut → plays Sanskrit, or stops if already going */}
-            <button
-              onClick={() => isIdle ? handlePlay('sanskrit') : handleStop()}
-              className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors"
-              aria-label={isIdle ? 'Listen' : 'Stop'}
-            >
-              {isLoading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : !isIdle
-                ? <Square className="w-3.5 h-3.5 fill-current" />
-                : <Volume2 className="w-3.5 h-3.5" />}
-              {isLoading ? 'Loading…' : !isIdle ? 'Stop' : 'Listen'}
-            </button>
-
-            {verseId && chapterId && (
-              <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
-            )}
-            <ShareButton chapter={chapter} verse={verse} sanskrit={sanskrit} translation={translation} />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border border-warm-200 dark:border-dark-700">
-          {/* Sanskrit text — highlighted word-by-word while speaking */}
-          <p className="font-sanskrit text-xl sm:text-2xl md:text-3xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
-            <HighlightedText
-              text={sanskrit}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'sanskrit'}
-            />
-          </p>
-
-          {showTranslit && (
-            <p className="mt-4 text-sm text-dark-500 dark:text-dark-400 italic text-center leading-relaxed">
-              {transliteration.split('\n').map((line, i) => (
-                <span key={i} className="block">{renderTranslitLine(line)}</span>
-              ))}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* ── Word meanings ── */}
-      {wordByWord && wordByWord.length > 0 && (
-        <section aria-label="Word meanings">
-          <button
-            onClick={() => setWordMeaningsOpen(o => !o)}
-            className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-warm-50 dark:bg-dark-800 border border-warm-200 dark:border-dark-700 hover:border-saffron-300 dark:hover:border-saffron-700 transition-colors group"
-            aria-expanded={wordMeaningsOpen}
-          >
-            <span className="text-sm font-semibold text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
-              Word meanings
-            </span>
-            {wordMeaningsOpen
-              ? <ChevronUp className="w-4 h-4 text-dark-400" />
-              : <ChevronDown className="w-4 h-4 text-dark-400" />}
-          </button>
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            wordMeaningsOpen ? 'max-h-[2000px] opacity-100 mt-3' : 'max-h-0 opacity-0',
-          )}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-1 py-2">
-              {wordByWord.map(({ word, meaning }, i) => (
-                <div key={i} className="flex items-baseline gap-2 text-sm">
-                  <span className="font-medium text-saffron-700 dark:text-saffron-400 shrink-0">{word}</span>
-                  <span className="text-dark-400 dark:text-dark-500 shrink-0">—</span>
-                  <span className="text-dark-600 dark:text-dark-300">{meaning}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Translation ── */}
-      <section aria-label="Translation">
-        <h2 className="text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-4">
-          Translation
-        </h2>
-        <blockquote className="border-l-4 border-saffron-400 dark:border-saffron-600 pl-6 py-2">
-          <p className="text-dark-800 dark:text-dark-100 text-lg leading-relaxed font-serif">
-            &ldquo;<HighlightedText
-              text={translation}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'translation'}
-            />&rdquo;
-          </p>
-          <footer className="mt-3 text-sm text-dark-400 dark:text-dark-500">
-            &mdash; Swami Sivananda, <cite>The Bhagavad Gita</cite> (Divine Life Society)
-          </footer>
-        </blockquote>
-      </section>
-
-      {/* ── Commentary ── */}
-      {commentary && (
-        <section aria-label="Commentary">
-          <button
-            onClick={() => setCommentaryOpen(o => !o)}
-            className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-warm-50 dark:bg-dark-800 border border-warm-200 dark:border-dark-700 hover:border-saffron-300 dark:hover:border-saffron-700 transition-colors group"
-            aria-expanded={commentaryOpen}
-          >
-            <span className="text-sm font-semibold text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
-              Commentary
-            </span>
-            {commentaryOpen
-              ? <ChevronUp className="w-4 h-4 text-dark-400" />
-              : <ChevronDown className="w-4 h-4 text-dark-400" />}
-          </button>
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            commentaryOpen ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0',
-          )}>
-            <div className="px-4 py-2">
-              {highlightSection === 'commentary' ? (
-                /*
-                 * While reading commentary, render as a SINGLE block so that
-                 * charIndex from onboundary aligns correctly with the text string.
-                 */
-                <HighlightedText
-                  text={commentary}
-                  charIdx={highlightCharIdx}
-                  active
-                  className="text-dark-600 dark:text-dark-300 leading-relaxed whitespace-pre-wrap"
-                />
-              ) : (
-                <div className="space-y-3">
-                  {commentary.split('\n\n').map((para, i) => (
-                    <p key={i} className="text-dark-600 dark:text-dark-300 leading-relaxed">{para}</p>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Audio Player ── */}
-      <section aria-label="Audio recitation" className="rounded-2xl border border-warm-200 dark:border-dark-700 bg-white dark:bg-dark-800 overflow-hidden">
-
-        {/* Header strip */}
-        <div className="flex items-center gap-2 px-4 pt-3.5 pb-3 border-b border-warm-100 dark:border-dark-700">
-          <Volume2 className="w-4 h-4 text-saffron-500 shrink-0" />
-          <span className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-widest flex-1">
-            Sanskrit Recitation
-          </span>
-          {/* Live status badge */}
-          {!isIdle && (
-            <span className={cn(
-              'text-xs font-medium px-2 py-0.5 rounded-full',
-              isPaused
-                ? 'bg-dark-100 dark:bg-dark-700 text-dark-500 dark:text-dark-400'
-                : 'bg-saffron-50 dark:bg-saffron-900/30 text-saffron-600 dark:text-saffron-400',
-            )}>
-              {isPaused
-                ? `⏸ Paused · ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`
-                : isLoading
-                ? '⌛ Loading…'
-                : `▶ ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`}
-            </span>
-          )}
-        </div>
-
-        <div className="p-4 space-y-3">
-
-          {/* What to read — mode selector */}
-          <div className="flex gap-1.5">
-            {([
-              { id: 'sanskrit'    as AudioMode, label: 'Sanskrit'     },
-              { id: 'translation' as AudioMode, label: 'Translation'  },
-              { id: 'full'        as AudioMode, label: 'Full reading' },
-            ]).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => { if (isIdle) setAudioMode(id); }}
-                disabled={!isIdle}
-                className={cn(
-                  'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                  audioMode === id
-                    ? 'bg-saffron-500 text-white border-saffron-500'
-                    : 'border-warm-200 dark:border-dark-700 text-dark-500 dark:text-dark-400 hover:border-saffron-300 dark:hover:border-saffron-600 disabled:opacity-40 disabled:cursor-not-allowed',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Controls row */}
-          <div className="flex items-center gap-2">
-
-            {isIdle && (
-              <button
-                onClick={() => handlePlay()}
-                className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow hover:-translate-y-0.5 transition-all"
-              >
-                <Play className="w-4 h-4 fill-current" /> Play
-              </button>
-            )}
-
-            {isLoading && (
-              <button disabled className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-saffron-50 dark:bg-saffron-900/20 text-saffron-600 dark:text-saffron-400 cursor-not-allowed">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-              </button>
-            )}
-
-            {isPlaying && (
-              <>
-                <button
-                  onClick={handlePause}
-                  className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-dark-100 dark:bg-dark-700 text-dark-700 dark:text-dark-200 hover:bg-dark-200 dark:hover:bg-dark-600 transition-colors"
-                >
-                  <Pause className="w-4 h-4 fill-current" /> Pause
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-800 dark:hover:text-red-400 transition-colors"
-                  aria-label="Stop"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </button>
-              </>
-            )}
-
-            {isPaused && (
-              <>
-                <button
-                  onClick={handleResume}
-                  className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow transition-all"
-                >
-                  <Play className="w-4 h-4 fill-current" /> Resume
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-800 dark:hover:text-red-400 transition-colors"
-                  aria-label="Stop"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </button>
-              </>
-            )}
-
-            {/* Speed selector */}
-            <div className={cn(
-              'flex items-center rounded-lg border border-warm-200 dark:border-dark-700 overflow-hidden text-xs font-medium',
-              isIdle ? 'ml-2' : 'ml-auto',
-            )}>
-              {([0.75, 1, 1.5] as const).map(spd => (
-                <button
-                  key={spd}
-                  onClick={() => { setAudioSpeed(spd); speedRef.current = spd; }}
-                  className={cn(
-                    'px-2.5 py-1.5 transition-colors',
-                    audioSpeed === spd
-                      ? 'bg-saffron-500 text-white'
-                      : 'text-dark-400 dark:text-dark-400 hover:bg-warm-100 dark:hover:bg-dark-700',
-                  )}
-                >
-                  {spd}×
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Full reading note */}
-          {audioMode === 'full' && isIdle && (
-            <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-              Reads Sanskrit → Translation{commentary ? ' → Commentary' : ''} in sequence
-            </p>
-          )}
-
-          <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-            Uses browser speech synthesis · Best in Chrome or Edge
-          </p>
-        </div>
-      </section>
-
-      {/* ── Reflect ── */}
-      <section className="bg-gradient-to-br from-spiritual-100 to-saffron-50 dark:from-spiritual-900/20 dark:to-saffron-900/10 rounded-2xl p-6 border border-spiritual-200 dark:border-spiritual-800/50">
-        <p className="text-xs font-semibold text-spiritual-600 dark:text-spiritual-400 uppercase tracking-widest mb-2">
-          Reflect
-        </p>
-        <p className="text-dark-700 dark:text-dark-200 text-sm leading-relaxed">
-          How does this verse speak to something you are navigating in your life right now? Sit with it for a moment before moving on.
-        </p>
-      </section>
-
-    </article>
-  );
-}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowTranslit(v => !v)}
-              className="flex items-center gap-1.5 text-xs text-dark-400 hover:text-dark-600 dark:hover:text-dark-200 transition-colors"
-              aria-label={showTranslit ? 'Hide transliteration' : 'Show transliteration'}
-            >
-              {showTranslit ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {showTranslit ? 'Hide' : 'Show'} transliteration
-            </button>
-
-            <button
-              onClick={() => isIdle ? handlePlay('sanskrit') : handleStop()}
-              className="flex items-center gap-1 text-xs text-saffron-600 dark:text-saffron-400 hover:text-saffron-700 transition-colors"
-              aria-label={isIdle ? 'Listen' : 'Stop'}
-            >
-              {isLoading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : !isIdle
-                ? <Square className="w-3.5 h-3.5 fill-current" />
-                : <Volume2 className="w-3.5 h-3.5" />}
-              {isLoading ? 'Loading…' : !isIdle ? 'Stop' : 'Listen'}
-            </button>
-
-            {verseId && chapterId && (
-              <BookmarkButton verseId={verseId} chapterId={chapterId} size="sm" />
-            )}
-            <ShareButton chapter={chapter} verse={verse} sanskrit={sanskrit} translation={translation} />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-warm-50 to-saffron-50/30 dark:from-dark-800 dark:to-dark-800/50 rounded-2xl p-6 sm:p-8 border border-warm-200 dark:border-dark-700">
-          <p className="font-sanskrit text-xl sm:text-2xl md:text-3xl text-dark-900 dark:text-white leading-loose text-center whitespace-pre-line">
-            <HighlightedText
-              text={sanskrit}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'sanskrit'}
-            />
-          </p>
-
-          {showTranslit && (
-            <p className="mt-4 text-sm text-dark-500 dark:text-dark-400 italic text-center leading-relaxed">
-              {transliteration.split('\n').map((line, i) => (
-                <span key={i} className="block">{renderTranslitLine(line)}</span>
-              ))}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {wordByWord && wordByWord.length > 0 && (
-        <section aria-label="Word meanings">
-          <button
-            onClick={() => setWordMeaningsOpen(o => !o)}
-            className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-warm-50 dark:bg-dark-800 border border-warm-200 dark:border-dark-700 hover:border-saffron-300 dark:hover:border-saffron-700 transition-colors group"
-            aria-expanded={wordMeaningsOpen}
-          >
-            <span className="text-sm font-semibold text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
-              Word meanings
-            </span>
-            {wordMeaningsOpen
-              ? <ChevronUp className="w-4 h-4 text-dark-400" />
-              : <ChevronDown className="w-4 h-4 text-dark-400" />}
-          </button>
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            wordMeaningsOpen ? 'max-h-[2000px] opacity-100 mt-3' : 'max-h-0 opacity-0',
-          )}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-1 py-2">
-              {wordByWord.map(({ word, meaning }, i) => (
-                <div key={i} className="flex items-baseline gap-2 text-sm">
-                  <span className="font-medium text-saffron-700 dark:text-saffron-400 shrink-0">{word}</span>
-                  <span className="text-dark-400 dark:text-dark-500 shrink-0">&mdash;</span>
-                  <span className="text-dark-600 dark:text-dark-300">{meaning}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section aria-label="Translation">
-        <h2 className="text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-widest mb-4">
-          Translation
-        </h2>
-        <blockquote className="border-l-4 border-saffron-400 dark:border-saffron-600 pl-6 py-2">
-          <p className="text-dark-800 dark:text-dark-100 text-lg leading-relaxed font-serif">
-            &ldquo;<HighlightedText
-              text={translation}
-              charIdx={highlightCharIdx}
-              active={highlightSection === 'translation'}
-            />&rdquo;
-          </p>
-          <footer className="mt-3 text-sm text-dark-400 dark:text-dark-500">
-            &mdash; Swami Sivananda, <cite>The Bhagavad Gita</cite> (Divine Life Society)
-          </footer>
-        </blockquote>
-      </section>
-
-      {commentary && (
-        <section aria-label="Commentary">
-          <button
-            onClick={() => setCommentaryOpen(o => !o)}
-            className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-warm-50 dark:bg-dark-800 border border-warm-200 dark:border-dark-700 hover:border-saffron-300 dark:hover:border-saffron-700 transition-colors group"
-            aria-expanded={commentaryOpen}
-          >
-            <span className="text-sm font-semibold text-dark-700 dark:text-dark-200 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
-              Commentary
-            </span>
-            {commentaryOpen
-              ? <ChevronUp className="w-4 h-4 text-dark-400" />
-              : <ChevronDown className="w-4 h-4 text-dark-400" />}
-          </button>
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            commentaryOpen ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0',
-          )}>
-            <div className="px-4 py-2">
-              {highlightSection === 'commentary' ? (
-                <HighlightedText
-                  text={commentary}
-                  charIdx={highlightCharIdx}
-                  active
-                  className="text-dark-600 dark:text-dark-300 leading-relaxed whitespace-pre-wrap"
-                />
-              ) : (
-                <div className="space-y-3">
-                  {commentary.split('\n\n').map((para, i) => (
-                    <p key={i} className="text-dark-600 dark:text-dark-300 leading-relaxed">{para}</p>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section aria-label="Audio recitation" className="rounded-2xl border border-warm-200 dark:border-dark-700 bg-white dark:bg-dark-800 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 pt-3.5 pb-3 border-b border-warm-100 dark:border-dark-700">
-          <Volume2 className="w-4 h-4 text-saffron-500 shrink-0" />
-          <span className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-widest flex-1">
-            Sanskrit Recitation
-          </span>
-          {!isIdle && (
-            <span className={cn(
-              'text-xs font-medium px-2 py-0.5 rounded-full',
-              isPaused
-                ? 'bg-dark-100 dark:bg-dark-700 text-dark-500 dark:text-dark-400'
-                : 'bg-saffron-50 dark:bg-saffron-900/30 text-saffron-600 dark:text-saffron-400',
-            )}>
-              {isPaused
-                ? `⏸ Paused · ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`
-                : isLoading
-                ? '⌛ Loading…'
-                : `▶ ${highlightSection ? SECTION_LABEL[highlightSection] : ''}`}
-            </span>
-          )}
-        </div>
-
-        <div className="p-4 space-y-3">
-          <div className="flex gap-1.5">
-            {([
-              { id: 'sanskrit'    as AudioMode, label: 'Sanskrit'     },
-              { id: 'translation' as AudioMode, label: 'Translation'  },
-              { id: 'full'        as AudioMode, label: 'Full reading' },
-            ]).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => { if (isIdle) setAudioMode(id); }}
-                disabled={!isIdle}
-                className={cn(
-                  'flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all',
-                  audioMode === id
-                    ? 'bg-saffron-500 text-white border-saffron-500'
-                    : 'border-warm-200 dark:border-dark-700 text-dark-500 dark:text-dark-400 hover:border-saffron-300 dark:hover:border-saffron-600 disabled:opacity-40 disabled:cursor-not-allowed',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isIdle && (
-              <button
-                onClick={() => handlePlay()}
-                className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow hover:-translate-y-0.5 transition-all"
-              >
-                <Play className="w-4 h-4 fill-current" /> Play
-              </button>
-            )}
-
-            {isLoading && (
-              <button disabled className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-saffron-50 dark:bg-saffron-900/20 text-saffron-600 dark:text-saffron-400 cursor-not-allowed">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-              </button>
-            )}
-
-            {isPlaying && (
-              <>
-                <button
-                  onClick={handlePause}
-                  className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-dark-100 dark:bg-dark-700 text-dark-700 dark:text-dark-200 hover:bg-dark-200 dark:hover:bg-dark-600 transition-colors"
-                >
-                  <Pause className="w-4 h-4 fill-current" /> Pause
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-800 dark:hover:text-red-400 transition-colors"
-                  aria-label="Stop"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </button>
-              </>
-            )}
-
-            {isPaused && (
-              <>
-                <button
-                  onClick={handleResume}
-                  className="flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-saffron-500 to-saffron-600 text-white hover:shadow-glow transition-all"
-                >
-                  <Play className="w-4 h-4 fill-current" /> Resume
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="p-2.5 rounded-xl border border-warm-200 dark:border-dark-600 text-dark-400 hover:border-red-300 hover:text-red-500 dark:hover:border-red-800 dark:hover:text-red-400 transition-colors"
-                  aria-label="Stop"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                </button>
-              </>
-            )}
-
-            <div className={cn(
-              'flex items-center rounded-lg border border-warm-200 dark:border-dark-700 overflow-hidden text-xs font-medium',
-              isIdle ? 'ml-2' : 'ml-auto',
-            )}>
-              {([0.75, 1, 1.5] as const).map(spd => (
-                <button
-                  key={spd}
-                  onClick={() => { setAudioSpeed(spd); speedRef.current = spd; }}
-                  className={cn(
-                    'px-2.5 py-1.5 transition-colors',
-                    audioSpeed === spd
-                      ? 'bg-saffron-500 text-white'
-                      : 'text-dark-400 dark:text-dark-400 hover:bg-warm-100 dark:hover:bg-dark-700',
-                  )}
-                >
-                  {spd}\xd7
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {audioMode === 'full' && isIdle && (
-            <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-              Reads Sanskrit → Translation{commentary ? ' → Commentary' : ''} in sequence
-            </p>
-          )}
-
-          <p className="text-xs text-dark-400 dark:text-dark-500 text-center">
-            Uses browser speech synthesis · Best in Chrome or Edge
-          </p>
-        </div>
-      </section>
-
-      <section className="bg-gradient-to-br from-spiritual-100 to-saffron-50 dark:from-spiritual-900/20 dark:to-saffron-900/10 rounded-2xl p-6 border border-spiritual-200 dark:border-spiritual-800/50">
-        <p className="text-xs font-semibold text-spiritual-600 dark:text-spiritual-400 uppercase tracking-widest mb-2">
-          Reflect
-        </p>
-        <p className="text-dark-700 dark:text-dark-200 text-sm leading-relaxed">
-          How does this verse speak to something you are navigating in your life right now? Sit with it for a moment before moving on.
-        </p>
-      </section>
-
-    </article>
-  );
-}
-            Uses browser speech synthesis · Best in Chrome or Edge
-          </p>
-        </div>
-      </section>
-
-      <section className="bg-gradient-to-br from-spiritual-100 to-saffron-50 dark:from-spiritual-900/20 dark:to-saffron-900/10 rounded-2xl p-6 border border-spiritual-200 dark:border-spiritual-800/50">
-        <p className="text-xs font-semibold text-spiritual-600 dark:text-spiritual-400 uppercase tracking-widest mb-2">
-          Reflect
-        </p>
-        <p className="text-dark-700 dark:text-dark-200 text-sm leading-relaxed">
-          How does this verse speak to something you are navigating in your life right now? Sit with it for a moment before moving on.
-        </p>
-      </section>
-
-    </article>
-  );
-}
       </section>
 
     </article>
