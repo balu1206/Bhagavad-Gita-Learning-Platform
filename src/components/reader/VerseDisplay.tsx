@@ -80,12 +80,17 @@ export function VerseDisplay({
   const [highlightSection, setHighlightSection] = useState<ReadSection | null>(null);
 
   // Stable refs (avoid stale closures in async callbacks)
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const sequenceRef  = useRef<Array<{ text: string; section: ReadSection }>>([]);
-  const seqIdxRef    = useRef(0);
-  const speedRef     = useRef<number>(audioSpeed);
-  const mountedRef   = useRef(true);
-  speedRef.current   = audioSpeed;
+  const utteranceRef      = useRef<SpeechSynthesisUtterance | null>(null);
+  const sequenceRef       = useRef<Array<{ text: string; section: ReadSection }>>([]);
+  const seqIdxRef         = useRef(0);
+  const speedRef          = useRef<number>(audioSpeed);
+  const mountedRef        = useRef(true);
+  // Pause/resume: record char offset so we can re-speak from that position
+  const lastCharIdxRef    = useRef(-1);
+  const pauseOffsetRef    = useRef(0);
+  // Timer-based fallback for Sanskrit (onboundary doesn't fire for Devanagari in Chrome)
+  const fallbackTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  speedRef.current        = audioSpeed;
 
   // Word map for transliteration hover tooltips
   const wordMap = useMemo(() => {
@@ -100,6 +105,8 @@ export function VerseDisplay({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      fallbackTimersRef.current.forEach(clearTimeout);
+      fallbackTimersRef.current = [];
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     };
   }, []);
@@ -109,20 +116,33 @@ export function VerseDisplay({
     if (highlightSection === 'commentary') setCommentaryOpen(true);
   }, [highlightSection]);
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const clearFallbackTimers = useCallback(() => {
+    fallbackTimersRef.current.forEach(clearTimeout);
+    fallbackTimersRef.current = [];
+  }, []);
+
   // ── Core speak function ───────────────────────────────────────────────────
+  // startOffset: resume mid-text by skipping the first N chars.
   const speakText = useCallback((
     text: string,
     section: ReadSection,
     rate: number,
+    startOffset: number,
     onDone: () => void,
   ) => {
     if (!('speechSynthesis' in window)) return;
+    clearFallbackTimers();
     window.speechSynthesis.cancel();
     setHighlightSection(section);
     setHighlightCharIdx(-1);
+    lastCharIdxRef.current = startOffset > 0 ? startOffset : -1;
     setAudioStatus('loading');
 
-    const u = new SpeechSynthesisUtterance(text);
+    // When resuming, speak only the remaining text; adjust charIndex by offset.
+    const utterText = startOffset > 0 ? text.substring(startOffset) : text;
+
+    const u = new SpeechSynthesisUtterance(utterText);
     const voices     = window.speechSynthesis.getVoices();
     const isSanskrit = section === 'sanskrit';
 
@@ -138,24 +158,59 @@ export function VerseDisplay({
     u.rate  = rate;
     u.pitch = 1.0;
 
-    u.onstart = () => { if (mountedRef.current) setAudioStatus('playing'); };
+    // Track whether onboundary fires (it won't for Devanagari in Chrome).
+    let boundaryFired = false;
 
-    // onboundary fires at each word boundary — use requestAnimationFrame to
-    // throttle React re-renders to display frames.
+    u.onstart = () => {
+      if (!mountedRef.current) return;
+      setAudioStatus('playing');
+
+      // ── Timer-based fallback for word highlighting ──────────────────────
+      // Schedule a highlight update for every word in utterText.
+      // If onboundary fires later we'll cancel these and switch to event-based.
+      const tokens = tokenize(utterText);
+      // Sanskrit chars-per-second is slower than English.
+      const charsPerSec = isSanskrit ? 10 * rate : 15 * rate;
+      const ids: ReturnType<typeof setTimeout>[] = [];
+      tokens.forEach(tok => {
+        if (!tok.isWord) return;
+        const delayMs = (tok.start / charsPerSec) * 1000;
+        const id = setTimeout(() => {
+          if (!mountedRef.current || boundaryFired) return;
+          const absIdx = startOffset + tok.start;
+          lastCharIdxRef.current = absIdx;
+          setHighlightCharIdx(absIdx);
+        }, delayMs);
+        ids.push(id);
+      });
+      fallbackTimersRef.current = ids;
+    };
+
+    // onboundary fires at each word boundary (English only in Chrome).
+    // If it fires, cancel the fallback timers and switch to event-based.
     u.onboundary = (e) => {
-      if (e.name === 'word' && mountedRef.current) {
-        requestAnimationFrame(() => setHighlightCharIdx(e.charIndex));
+      if (e.name !== 'word' || !mountedRef.current) return;
+      if (!boundaryFired) {
+        boundaryFired = true;
+        clearFallbackTimers();
       }
+      const absIdx = startOffset + e.charIndex;
+      lastCharIdxRef.current = absIdx;
+      requestAnimationFrame(() => {
+        if (mountedRef.current) setHighlightCharIdx(absIdx);
+      });
     };
 
     u.onend = () => {
       if (!mountedRef.current) return;
+      clearFallbackTimers();
       setHighlightCharIdx(-1);
       onDone();
     };
 
     u.onerror = (e) => {
       if (!mountedRef.current) return;
+      clearFallbackTimers();
       if (e.error !== 'canceled' && e.error !== 'interrupted') {
         toast({ message: 'Playback error — try again', variant: 'error' });
       }
@@ -170,10 +225,11 @@ export function VerseDisplay({
     setTimeout(() => {
       if (mountedRef.current) setAudioStatus(s => s === 'loading' ? 'playing' : s);
     }, 400);
-  }, [toast]);
+  }, [toast, clearFallbackTimers]);
 
   // ── Sequence player (chains multiple sections for Full mode) ──────────────
-  const playStep = useCallback((idx: number) => {
+  // offset: char offset into the current step's text (used when resuming).
+  const playStep = useCallback((idx: number, offset = 0) => {
     const seq = sequenceRef.current;
     if (idx >= seq.length) {
       if (mountedRef.current) {
@@ -183,10 +239,11 @@ export function VerseDisplay({
       }
       return;
     }
-    speakText(seq[idx].text, seq[idx].section, speedRef.current, () => {
+    speakText(seq[idx].text, seq[idx].section, speedRef.current, offset, () => {
       seqIdxRef.current = idx + 1;
+      pauseOffsetRef.current = 0; // reset offset for next step
       // Small pause (700ms) between sections
-      setTimeout(() => { if (mountedRef.current) playStep(idx + 1); }, 700);
+      setTimeout(() => { if (mountedRef.current) playStep(idx + 1, 0); }, 700);
     });
   }, [speakText]);
 
@@ -214,26 +271,31 @@ export function VerseDisplay({
   }, [audioMode, sanskrit, translation, commentary, playStep, toast]);
 
   const handlePause = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.pause();
-      setAudioStatus('paused');
-    }
-  }, []);
+    if (!('speechSynthesis' in window)) return;
+    // speechSynthesis.pause() is broken in Chrome (restarts from beginning).
+    // Instead, cancel the current utterance and record where we stopped so
+    // handleResume can re-speak from that offset.
+    clearFallbackTimers();
+    pauseOffsetRef.current = lastCharIdxRef.current > 0 ? lastCharIdxRef.current : 0;
+    window.speechSynthesis.cancel();
+    setAudioStatus('paused');
+  }, [clearFallbackTimers]);
 
   const handleResume = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.resume();
-      setAudioStatus('playing');
-    }
-  }, []);
+    // Re-speak the current sequence step starting from the saved char offset.
+    playStep(seqIdxRef.current, pauseOffsetRef.current);
+  }, [playStep]);
 
   const handleStop = useCallback(() => {
+    clearFallbackTimers();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    pauseOffsetRef.current = 0;
+    lastCharIdxRef.current = -1;
     setAudioStatus('idle');
     setHighlightSection(null);
     setHighlightCharIdx(-1);
     sequenceRef.current = [];
-  }, []);
+  }, [clearFallbackTimers]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isIdle    = audioStatus === 'idle';
@@ -586,3 +648,4 @@ export function VerseDisplay({
     </article>
   );
 }
+   
