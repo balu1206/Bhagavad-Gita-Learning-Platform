@@ -2,32 +2,158 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
+/* Editorial Luxury cream base */
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: #FDFBF7;
+  color: #1F1B17;
 }
 
+.dark body,
+body.dark {
+  background-color: #0F0D0B;
+  color: #F2EBE3;
+}
+
+/* ── Custom selection ────────────────────────────────────────────────────── */
+::selection {
+  background-color: rgba(255, 153, 51, 0.25);
+  color: inherit;
+}
+
+/* ── Grain overlay — fixed, pointer-events-none, GPU-safe ───────────────── */
+/* Applied via ::after on body so it never affects scrolling containers */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  animation: grain 8s steps(10) infinite;
+}
+
+.dark body::after {
+  opacity: 0.04;
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10%       { transform: translate(-2%, -2%); }
+  20%       { transform: translate(2%, 2%); }
+  30%       { transform: translate(-1%, 1%); }
+  40%       { transform: translate(1%, -1%); }
+  50%       { transform: translate(-2%, 1%); }
+  60%       { transform: translate(2%, -2%); }
+  70%       { transform: translate(-1%, -1%); }
+  80%       { transform: translate(1%, 2%); }
+  90%       { transform: translate(-2%, 2%); }
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance  { text-wrap: balance; }
+  .text-pretty   { text-wrap: pretty; }
+
+  /* Saffron-gold gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #FF9933 0%, #D4AF37 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
+
+  /* Display font shorthand */
+  .font-display { font-family: var(--font-display), Georgia, serif; }
+
+  /* Tabular numbers for stats */
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+/* ── Double-bezel card architecture ─────────────────────────────────────── */
+@layer components {
+  .bezel-card {
+    /* Outer shell */
+    @apply bg-black/[0.03] dark:bg-white/[0.04] ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-2 rounded-[2rem];
+  }
+  .bezel-core {
+    /* Inner core with inset highlight */
+    @apply bg-cream-50 dark:bg-dark-800 rounded-[calc(2rem-0.5rem)]
+           shadow-[inset_0_1px_1px_rgba(255,255,255,0.18)]
+           dark:shadow-[inset_0_1px_1px_rgba(0,0,0,0.25)];
+  }
+
+  /* Floating glass pill nav */
+  .glass-pill {
+    @apply backdrop-blur-xl bg-cream-50/80 dark:bg-dark-900/80
+           ring-1 ring-black/[0.08] dark:ring-white/[0.08]
+           shadow-[0_4px_24px_rgba(180,100,0,0.10)];
+  }
+
+  /* Premium pill button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-full px-6 py-3 text-sm font-semibold
+           bg-gradient-to-r from-saffron-500 to-gold-500 text-white
+           shadow-[0_4px_20px_rgba(255,153,51,0.35)]
+           transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+           hover:shadow-[0_8px_32px_rgba(255,153,51,0.50)]
+           hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-full px-6 py-3 text-sm font-semibold
+           ring-1 ring-saffron-400/60 text-saffron-700 dark:text-saffron-300
+           bg-saffron-50/60 dark:bg-saffron-900/20
+           transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+           hover:ring-saffron-500 hover:bg-saffron-100/80 dark:hover:bg-saffron-900/40
+           hover:-translate-y-0.5 active:scale-[0.98];
+  }
+
+  /* Eyebrow label */
+  .eyebrow {
+    @apply inline-flex items-center gap-1.5 rounded-full
+           px-3 py-1 text-[10px] uppercase tracking-[0.2em] font-semibold
+           bg-saffron-100/80 dark:bg-saffron-900/30
+           text-saffron-700 dark:text-saffron-400
+           ring-1 ring-saffron-300/50 dark:ring-saffron-700/50;
+  }
+}
+
+/* ── Scroll-driven entry animations ─────────────────────────────────────── */
+/* Used with IntersectionObserver in components */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  filter: blur(4px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* ── Sanskrit font rendering ─────────────────────────────────────────────── */
+.font-sanskrit {
+  font-family: var(--font-sanskrit), serif;
+  font-feature-settings: "kern" 1;
 }

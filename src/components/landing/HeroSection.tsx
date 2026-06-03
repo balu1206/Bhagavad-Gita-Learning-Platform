@@ -1,88 +1,117 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Headphones, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('revealed'); obs.disconnect(); } },
+      { threshold: 0.1 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return ref;
+}
 
 export function HeroSection() {
+  const leftRef  = useReveal();
+  const rightRef = useReveal();
+  const statsRef = useReveal();
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16 bg-white dark:bg-dark-900">
-      {/* Gradient orbs */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-saffron-500/10 blur-3xl animate-pulse-soft" />
-        <div className="absolute -bottom-40 -left-40 h-[600px] w-[600px] rounded-full bg-gold-500/10 blur-3xl animate-pulse-soft [animation-delay:1s]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[800px] w-[800px] rounded-full bg-saffron-400/5 blur-3xl" />
+    <section className="relative min-h-[100dvh] flex flex-col justify-center overflow-hidden bg-cream-50 dark:bg-dark-950">
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-32 right-0 w-[700px] h-[700px] rounded-full bg-gradient-saffron-glow opacity-70 dark:opacity-40" />
+        <div className="absolute bottom-0 -left-32 w-[500px] h-[500px] rounded-full bg-gradient-saffron-glow opacity-40 dark:opacity-20" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-20 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-saffron-200 bg-saffron-50 px-4 py-1.5 text-sm font-medium text-saffron-700 dark:border-saffron-800 dark:bg-saffron-900/20 dark:text-saffron-300 mb-8 animate-fade-in">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>The Bhagavad Gita — beautifully designed</span>
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-6 sm:px-8 pt-32 pb-20 lg:pt-40 lg:pb-32">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+          <div ref={leftRef} className="reveal">
+            <div className="eyebrow mb-8">
+              <svg className="w-2.5 h-2.5 text-saffron-500" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+              Ancient wisdom · Modern reading experience
+            </div>
+            <p className="font-sanskrit text-3xl text-saffron-500 dark:text-saffron-400 mb-4 leading-relaxed">
+              योगस्थः कुरु कर्माणि
+            </p>
+            <h1 className="font-display text-[3.5rem] sm:text-[4.5rem] lg:text-[5.5rem] xl:text-[6.5rem] font-semibold leading-[0.95] tracking-[-0.03em] text-dark-900 dark:text-cream-100 mb-6 text-pretty">
+              The Bhagavad<br />
+              <em className="text-gradient not-italic">Gita</em>
+            </h1>
+            <p className="text-lg text-dark-500 dark:text-dark-400 leading-relaxed max-w-md mb-10 font-light">
+              18 chapters. 700 verses. Sanskrit text, transliteration, English translation and Sivananda commentary — beautifully designed for the modern seeker.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/register" className="btn-primary text-sm">
+                Begin for free
+                <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center ml-1">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                </span>
+              </Link>
+              <Link href="/chapters" className="btn-secondary text-sm">Browse all verses</Link>
+            </div>
+          </div>
+
+          <div ref={rightRef} className="reveal reveal-delay-2 relative hidden lg:block">
+            <div className="relative h-[480px]">
+              <div className="absolute inset-x-8 top-8 bezel-card rotate-[2deg] opacity-40">
+                <div className="bezel-core p-6">
+                  <p className="font-sanskrit text-lg text-saffron-400 mb-2">|| 2.19 ||</p>
+                  <p className="font-display text-sm text-dark-500 dark:text-dark-400 italic">Neither the one who thinks of this as a killer nor the one...</p>
+                </div>
+              </div>
+              <div className="absolute inset-x-4 top-4 bezel-card rotate-[-1.5deg] opacity-65">
+                <div className="bezel-core p-6">
+                  <p className="font-sanskrit text-lg text-saffron-400 mb-2">|| 2.47 ||</p>
+                  <p className="font-display text-base text-dark-600 dark:text-dark-300 italic leading-snug">
+                    You have a right to perform your duties, but you are not entitled to the fruits...
+                  </p>
+                </div>
+              </div>
+              <div className="absolute inset-0 bezel-card shadow-xl">
+                <div className="bezel-core p-8 h-full flex flex-col">
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="eyebrow text-[9px]">Chapter 2 · Verse 20</span>
+                    <span className="text-xs text-dark-400 dark:text-dark-500 tabular">BG 2.20</span>
+                  </div>
+                  <p className="font-sanskrit text-2xl text-dark-800 dark:text-cream-200 leading-loose mb-4 text-center">
+                    न जायते म्रियते वा कदाचित्
+                  </p>
+                  <p className="text-xs text-dark-400 dark:text-dark-500 italic text-center mb-5">
+                    na jayate mriyate va kadacin
+                  </p>
+                  <div className="h-px bg-gradient-to-r from-transparent via-saffron-200 dark:via-saffron-800/50 to-transparent mb-5" />
+                  <p className="font-display text-base italic text-dark-700 dark:text-dark-200 leading-relaxed flex-1">
+                    &ldquo;The soul is never born nor dies at any time. It has not come into being, does not come into being, and will not come into being.&rdquo;
+                  </p>
+                  <div className="mt-5 flex items-center gap-2">
+                    <div className="h-px flex-1 bg-warm-200 dark:bg-dark-700" />
+                    <span className="text-xs text-dark-400 dark:text-dark-500">Swami Sivananda</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Headline — scales from 2.25rem on tiny screens up to 7xl on desktop */}
-        <h1 className="font-serif text-[2.25rem] xs:text-5xl sm:text-6xl md:text-7xl font-bold text-dark-900 dark:text-dark-50 leading-tight mb-6 animate-slide-up break-words">
-          Discover the wisdom
-          <br />
-          <span className="text-gradient">of Bhagavad Gita</span>
-        </h1>
-
-        {/* Sanskrit */}
-        <p className="font-sanskrit text-2xl text-saffron-600 dark:text-saffron-400 mb-6 animate-fade-in">
-          योगस्थः कुरु कर्माणि
-        </p>
-
-        {/* Sub-headline */}
-        <p className="mx-auto max-w-xl text-xl text-dark-500 dark:text-dark-400 leading-relaxed mb-10 animate-fade-in font-medium">
-          18 chapters. 700 verses. One timeless wisdom.
-        </p>
-
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16 animate-slide-up">
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all duration-200"
-          >
-            Begin for Free
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-          <Link
-            href="/chapters"
-            className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl text-base font-semibold border-2 border-saffron-500 text-saffron-600 dark:text-saffron-400 bg-transparent hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
-          >
-            <BookOpen className="h-4 w-4" aria-hidden="true" />
-            Browse Verses
-          </Link>
-        </div>
-
-        {/* Stats */}
-        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-dark-500 dark:text-dark-400 animate-fade-in">
+        <div ref={statsRef} className="reveal reveal-delay-3 mt-20 lg:mt-24 grid grid-cols-2 sm:grid-cols-4 gap-px bg-warm-200 dark:bg-dark-800 rounded-2xl overflow-hidden ring-1 ring-warm-200 dark:ring-dark-800">
           {[
             { value: '700', label: 'Verses' },
-            { value: '18', label: 'Chapters' },
-            { value: '8', label: 'Learning Steps' },
-            { value: '100%', label: 'Free to start' },
+            { value: '18',  label: 'Chapters' },
+            { value: '3',   label: 'Languages' },
+            { value: '100%', label: 'Free' },
           ].map(({ value, label }) => (
-            <div key={label} className="text-center">
-              <p className="text-2xl font-bold text-gradient">{value}</p>
-              <p className="text-xs mt-0.5">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Feature pills */}
-        <div className="mt-16 flex flex-wrap justify-center gap-3 animate-fade-in">
-          {[
-            { icon: BookOpen, text: 'Sanskrit + Translation' },
-            { icon: Headphones, text: 'Audio Recitation' },
-            { icon: Sparkles, text: 'Guided Journey' },
-          ].map(({ icon: Icon, text }) => (
-            <div
-              key={text}
-              className="flex items-center gap-2 rounded-full border border-warm-100 dark:border-dark-700 bg-white dark:bg-dark-850 px-4 py-2 text-sm text-dark-600 dark:text-dark-300 shadow-soft"
-            >
-              <Icon className="h-4 w-4 text-saffron-500" aria-hidden="true" />
-              {text}
+            <div key={label} className="bg-cream-50 dark:bg-dark-900 px-6 py-5 text-center">
+              <p className="font-display text-3xl font-semibold text-gradient tabular mb-1">{value}</p>
+              <p className="text-xs text-dark-400 dark:text-dark-500 uppercase tracking-widest">{label}</p>
             </div>
           ))}
         </div>

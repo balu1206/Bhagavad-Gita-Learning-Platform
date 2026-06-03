@@ -25,24 +25,21 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        // DS-007: Sidebar hidden below lg (1024px) — BottomNav takes over
         'hidden lg:flex flex-col h-screen sticky top-0',
-        'border-r border-warm-100 dark:border-dark-700',
-        'bg-white dark:bg-dark-900',
-        'transition-all duration-300 ease-in-out',
-        collapsed ? 'w-16' : 'w-60',
+        'border-r border-warm-200/60 dark:border-dark-800/60',
+        'bg-cream-50 dark:bg-dark-950',
+        'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        collapsed ? 'w-16' : 'w-56',
         className,
       )}
       aria-label="Main navigation"
     >
       {/* Logo */}
-      <div className={cn('flex items-center gap-3 px-4 py-5 border-b border-warm-100 dark:border-dark-700', collapsed && 'justify-center px-0')}>
-        <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-primary flex items-center justify-center">
-          <Flame className="h-4 w-4 text-white" aria-hidden="true" />
-        </div>
+      <div className={cn('flex items-center gap-3 px-5 py-5 border-b border-warm-200/60 dark:border-dark-800/60', collapsed && 'justify-center px-0')}>
+        <span className="font-sanskrit text-xl text-saffron-500 flex-shrink-0">ॐ</span>
         {!collapsed && (
-          <span className="font-serif font-semibold text-dark-900 dark:text-dark-100 text-base leading-tight">
-            Gita<br />Learning
+          <span className="font-display font-semibold text-dark-900 dark:text-cream-100 text-base">
+            GitaPath
           </span>
         )}
       </div>
@@ -62,16 +59,16 @@ export function Sidebar({ className }: SidebarProps) {
                   aria-current={isActive ? 'page' : undefined}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
-                    'transition-colors duration-150',
-                    'focus-visible:ring-2 focus-visible:ring-saffron-500 focus:outline-none',
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
+                    'transition-all duration-300',
+                    'focus-visible:ring-2 focus-visible:ring-saffron-400/40 focus:outline-none',
                     collapsed && 'justify-center px-0',
                     isActive
-                      ? 'bg-saffron-50 text-saffron-600 dark:bg-saffron-900/20 dark:text-saffron-400'
-                      : 'text-dark-600 hover:bg-warm-100 hover:text-dark-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-dark-100',
+                      ? 'bg-saffron-50 dark:bg-saffron-900/20 text-saffron-700 dark:text-saffron-400'
+                      : 'text-dark-500 hover:bg-warm-100 dark:hover:bg-dark-800 hover:text-dark-900 dark:hover:text-cream-100',
                   )}
                 >
-                  {Icon && <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />}
+                  {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               </li>
@@ -80,14 +77,13 @@ export function Sidebar({ className }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Bottom — ISSUE-013: ThemeToggle removed from sidebar; canonical position is Header (top-right) */}
-      <div className={cn('border-t border-warm-100 dark:border-dark-700 p-2 flex items-center', collapsed ? 'flex-col gap-2 py-3' : 'gap-2')}>
+      {/* Collapse toggle */}
+      <div className={cn('border-t border-warm-200/60 dark:border-dark-800/60 p-2 flex items-center', collapsed ? 'flex-col gap-2 py-3' : 'gap-2')}>
         <button
           onClick={() => setCollapsed((v) => !v)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className={cn(
-            'ml-auto rounded-lg p-2 text-dark-400 hover:bg-warm-100 hover:text-dark-700',
-            'dark:hover:bg-dark-800 dark:hover:text-dark-200 transition-colors',
+            'ml-auto rounded-lg p-2 text-dark-400 hover:bg-warm-100 dark:hover:bg-dark-800 hover:text-dark-700 dark:hover:text-dark-200 transition-colors duration-300',
             collapsed && 'ml-0 w-full flex justify-center',
           )}
         >

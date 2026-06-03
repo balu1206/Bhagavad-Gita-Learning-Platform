@@ -1,75 +1,100 @@
-import { BookOpen, Headphones, Map, Bookmark, BarChart3, Moon } from 'lucide-react';
+'use client';
+
+import { useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 const features = [
   {
-    icon: BookOpen,
-    title: 'Immersive Reading',
-    desc: 'Read all 700 verses with Sanskrit text, transliteration, word-by-word meaning, and Prabhupada commentary. Customize font size and reading theme.',
-    gradient: 'from-saffron-500 to-gold-500',
+    id: 'reading',
+    eyebrow: 'Core experience',
+    title: 'Immersive verse reading',
+    desc: 'Sanskrit Devanagari, transliteration, word-by-word meanings, and Sivananda commentary all in one beautifully composed layout.',
+    col: 'lg:col-span-2',
+    accent: 'from-saffron-400 to-gold-400',
+    devanagari: 'श्रीमद्भगवद्गीता',
   },
   {
-    icon: Headphones,
-    title: 'Audio Recitation',
-    desc: 'Listen to authentic Sanskrit recitation with a full-screen player, speed controls, queue management, and lock-screen media controls.',
-    gradient: 'from-blue-500 to-spiritual-purple',
+    id: 'audio',
+    eyebrow: 'Listen',
+    title: 'Pre-recorded audio',
+    desc: 'Authentic recitations for every verse. Real pause, resume, and seek — not browser speech synthesis.',
+    col: 'lg:col-span-1',
+    accent: 'from-amber-400 to-saffron-500',
+    devanagari: '♪',
   },
   {
-    icon: Map,
-    title: 'Guided Journey',
-    desc: 'Follow an 8-step beginner path from Introduction to Liberation. Complete lessons, pass quizzes, and unlock achievements as you grow.',
-    gradient: 'from-green-500 to-emerald-600',
+    id: 'journey',
+    eyebrow: 'Learn',
+    title: 'Guided 8-step path',
+    desc: 'From Introduction to Liberation. Lessons, quizzes, and milestones for beginners.',
+    col: 'lg:col-span-1',
+    accent: 'from-gold-400 to-amber-500',
+    devanagari: '॰',
   },
   {
-    icon: Bookmark,
-    title: 'Bookmarks & Notes',
-    desc: 'Save verses that move you. Add personal notes, organize with tags, and search your entire collection with instant results.',
-    gradient: 'from-purple-500 to-pink-500',
-  },
-  {
-    icon: BarChart3,
-    title: 'Progress Tracking',
-    desc: 'Watch your reading streak grow daily. See chapter completion, listening hours, and your learning journey visualized beautifully.',
-    gradient: 'from-orange-500 to-red-500',
-  },
-  {
-    icon: Moon,
-    title: 'Dark Mode & Offline',
-    desc: 'Beautiful light and dark themes. PWA support means you can read verses even without an internet connection, any time.',
-    gradient: 'from-slate-500 to-dark-700',
+    id: 'bookmarks',
+    eyebrow: 'Personal',
+    title: 'Bookmarks & notes',
+    desc: 'Save verses with personal notes and tags. Your own Gita reference library.',
+    col: 'lg:col-span-2',
+    accent: 'from-saffron-300 to-gold-500',
+    devanagari: '❁',
   },
 ];
 
 export function FeaturesSection() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); observer.unobserve(e.target); } }),
+      { threshold: 0.08 },
+    );
+    document.querySelectorAll('.feature-reveal').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section id="features" className="py-16 md:py-24 px-4 sm:px-6 bg-warm-50 dark:bg-dark-900">
-      <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <p className="text-sm font-semibold uppercase tracking-widest text-saffron-600 dark:text-saffron-400 mb-3">
-            Everything you need
-          </p>
-          <h2 className="font-serif text-4xl md:text-5xl font-bold text-dark-900 dark:text-dark-100 mb-4">
-            A complete platform for
-            <br />
-            <span className="text-gradient">spiritual learning</span>
+    <section id="features" className="py-32 lg:py-40 bg-cream-50 dark:bg-dark-950">
+      <div className="mx-auto max-w-7xl px-6 sm:px-8">
+        <div className="reveal feature-reveal mb-16 max-w-xl">
+          <div className="eyebrow mb-5">Everything you need</div>
+          <h2 className="font-display text-5xl sm:text-6xl font-semibold text-dark-900 dark:text-cream-100 leading-[1.05] tracking-tight text-pretty">
+            Designed for depth,<br />
+            <em className="text-gradient not-italic">not distraction</em>
           </h2>
-          <p className="mx-auto max-w-xl text-dark-500 dark:text-dark-400 text-lg">
-            Built with the same care as Headspace, Calm, and Notion — for the study of timeless wisdom.
-          </p>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map(({ icon: Icon, title, desc, gradient }) => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {features.map((f, i) => (
             <div
-              key={title}
-              className="group relative rounded-2xl border border-warm-100 dark:border-dark-700 bg-white dark:bg-dark-850 p-6 shadow-soft hover:shadow-medium hover:-translate-y-0.5 transition-all duration-200"
+              key={f.id}
+              className={cn('reveal feature-reveal', f.col)}
+              style={{ transitionDelay: `${i * 80}ms` }}
             >
-              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} shadow-medium mb-4`}>
-                <Icon className="h-6 w-6 text-white" aria-hidden="true" />
+              <div className="bezel-card h-full group cursor-default">
+                <div className="bezel-core p-7 lg:p-8 h-full flex flex-col gap-5 transition-all duration-500">
+                  <div className={cn(
+                    'font-sanskrit text-4xl lg:text-5xl bg-gradient-to-br bg-clip-text text-transparent w-fit',
+                    f.accent,
+                  )}>
+                    {f.devanagari}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-saffron-600 dark:text-saffron-500 mb-2">
+                      {f.eyebrow}
+                    </p>
+                    <h3 className="font-display text-2xl lg:text-3xl font-semibold text-dark-900 dark:text-cream-100 leading-tight tracking-tight mb-3">
+                      {f.title}
+                    </h3>
+                    <p className="text-dark-500 dark:text-dark-400 leading-relaxed text-sm font-light max-w-prose">
+                      {f.desc}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-saffron-600 dark:text-saffron-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span>Explore</span>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-semibold text-lg text-dark-900 dark:text-dark-100 mb-2">{title}</h3>
-              <p className="text-dark-500 dark:text-dark-400 text-sm leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>

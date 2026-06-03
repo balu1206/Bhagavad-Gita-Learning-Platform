@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { BookOpen, Flame, Lock, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ChapterCard, type ChapterCardData } from '@/components/chapters/ChapterCard';
 import { ChaptersFilter, type FilterStatus } from '@/components/chapters/ChaptersFilter';
-import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 
 interface LastRead { chapter: number; verse: number; title: string; ts: number; }
 
@@ -25,7 +24,6 @@ export default function ChaptersPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Load last-read position from localStorage
   useEffect(() => {
     try {
       const raw = localStorage.getItem('gita_last_read');
@@ -53,100 +51,93 @@ export default function ChaptersPage() {
   }, [chapters, query, status]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream-50 dark:bg-dark-950">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 py-12 lg:py-16">
 
-      {/* Continue Reading banner — shown when user has a reading history */}
-      {lastRead && (
-        <Link
-          href={`/chapters/${lastRead.chapter}/${lastRead.verse}`}
-          className="flex items-center justify-between gap-4 mb-6 px-5 py-4 rounded-2xl bg-gradient-to-r from-saffron-50 to-gold-50 dark:from-saffron-900/20 dark:to-gold-900/10 border border-saffron-200 dark:border-saffron-700 hover:shadow-soft transition-shadow group"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <BookOpen className="w-5 h-5 text-saffron-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-saffron-600 dark:text-saffron-400 font-medium uppercase tracking-widest mb-0.5">Continue where you left off</p>
-              <p className="font-semibold text-dark-900 dark:text-white truncate">
-                Chapter {lastRead.chapter}, Verse {lastRead.verse}
-                {lastRead.title && <span className="text-dark-400 dark:text-dark-500 font-normal"> · {lastRead.title}</span>}
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="w-5 h-5 text-saffron-500 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
-        </Link>
-      )}
-
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpen className="w-5 h-5 text-saffron-500" />
-            <p className="text-sm text-saffron-600 dark:text-saffron-400 font-medium uppercase tracking-widest">
-              All Chapters
-            </p>
-          </div>
-          <h1 className="font-serif text-3xl text-dark-900 dark:text-white">
-            The Bhagavad Gita
-          </h1>
-          <p className="text-dark-400 dark:text-dark-500 text-sm mt-1">
-            18 chapters · 700 verses · Timeless wisdom
-          </p>
-        </div>
-
-        {!session && (
+        {lastRead && (
           <Link
-            href="/register"
-            className="flex items-center gap-3 bg-gradient-to-r from-saffron-50 to-gold-50 dark:from-saffron-900/20 dark:to-gold-900/10 rounded-2xl border border-saffron-200 dark:border-saffron-800 p-4 self-start hover:shadow-soft transition-shadow"
+            href={`/chapters/${lastRead.chapter}/${lastRead.verse}`}
+            className="group flex items-center justify-between gap-4 mb-10 bezel-card"
           >
-            <Lock className="w-5 h-5 text-saffron-500 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-saffron-700 dark:text-saffron-300 text-sm">Track your progress</p>
-              <p className="text-xs text-saffron-600/70 dark:text-saffron-400/70">Sign up free to save your reading journey</p>
+            <div className="bezel-core w-full px-6 py-4 flex items-center justify-between gap-4 transition-all duration-500">
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="font-sanskrit text-xl text-saffron-500 dark:text-saffron-400 flex-shrink-0">॰</span>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-saffron-600 dark:text-saffron-500 mb-0.5">Continue reading</p>
+                  <p className="font-display text-base font-semibold text-dark-900 dark:text-cream-100 truncate">
+                    Chapter {lastRead.chapter}, Verse {lastRead.verse}
+                    {lastRead.title && <span className="text-dark-400 dark:text-dark-500 font-normal"> · {lastRead.title}</span>}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-saffron-400 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-300" />
             </div>
           </Link>
         )}
-      </div>
 
-      {/* Filters */}
-      <div className="mb-6">
-        <ChaptersFilter
-          query={query}
-          status={status}
-          onQueryChange={setQuery}
-          onStatusChange={setStatus}
-          totalCount={chapters.length}
-          filteredCount={filtered.length}
-        />
-      </div>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
+          <div>
+            <div className="eyebrow mb-4">All Chapters</div>
+            <h1 className="font-display text-5xl sm:text-6xl font-semibold text-dark-900 dark:text-cream-100 leading-[1.0] tracking-[-0.03em] mb-3">
+              The Bhagavad<br />
+              <em className="text-gradient not-italic">Gita</em>
+            </h1>
+            <p className="text-dark-400 dark:text-dark-500 font-light">
+              18 chapters · 700 verses · Timeless wisdom
+            </p>
+          </div>
 
-      {/* Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[...Array(18)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-warm-100 dark:border-dark-700 p-6">
-              <Skeleton className="h-5 w-32 mb-2" />
-              <Skeleton className="h-4 w-20 mb-4" />
-              <Skeleton className="h-2 w-full" />
-            </div>
-          ))}
+          {!session && (
+            <Link href="/register" className="group bezel-card self-start sm:self-end flex-shrink-0">
+              <div className="bezel-core px-5 py-4 flex items-center gap-3 transition-all duration-500">
+                <Lock className="w-4 h-4 text-saffron-500 flex-shrink-0" />
+                <div>
+                  <p className="font-display font-semibold text-dark-900 dark:text-cream-100 text-sm">Track your progress</p>
+                  <p className="text-xs text-dark-400 dark:text-dark-500 font-light">Sign up free</p>
+                </div>
+              </div>
+            </Link>
+          )}
         </div>
-      ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((chapter) => (
-            <ChapterCard key={chapter.number} chapter={chapter} />
-          ))}
+
+        <div className="mb-8">
+          <ChaptersFilter
+            query={query}
+            status={status}
+            onQueryChange={setQuery}
+            onStatusChange={setStatus}
+            totalCount={chapters.length}
+            filteredCount={filtered.length}
+          />
         </div>
-      ) : (
-        <div className="text-center py-20">
-          <Flame className="w-12 h-12 text-dark-200 dark:text-dark-700 mx-auto mb-4" />
-          <p className="text-dark-500 dark:text-dark-400 font-medium">No chapters match your search</p>
-          <button
-            onClick={() => { setQuery(''); setStatus('all'); }}
-            className="mt-3 text-saffron-600 dark:text-saffron-400 text-sm underline"
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(18)].map((_, i) => (
+              <div key={i} className="bezel-card animate-pulse">
+                <div className="bezel-core p-6 h-52" />
+              </div>
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((chapter, i) => (
+              <ChapterCard key={chapter.number} chapter={chapter} delay={i * 40} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-24">
+            <p className="font-sanskrit text-4xl text-dark-200 dark:text-dark-700 mb-4">ॐ</p>
+            <p className="font-display text-lg font-semibold text-dark-500 dark:text-dark-400 mb-2">No chapters match</p>
+            <button
+              onClick={() => { setQuery(''); setStatus('all'); }}
+              className="text-saffron-600 dark:text-saffron-400 text-sm hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -130,7 +130,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-dark-900 rounded-2xl shadow-large border border-warm-100 dark:border-dark-700 overflow-hidden">
+      <div className="relative w-full max-w-lg bg-cream-50 dark:bg-dark-900 rounded-2xl shadow-xl border border-warm-200/60 dark:border-dark-700 overflow-hidden">
         {/* Input row */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-warm-100 dark:border-dark-800">
           <Search className="w-5 h-5 text-dark-400 flex-shrink-0" />
@@ -290,8 +290,8 @@ export function Header({ title, className }: HeaderProps) {
       <header
         className={cn(
           'sticky top-0 z-[1020] flex items-center gap-4 px-4 md:px-6 h-14',
-          'border-b border-warm-100 dark:border-dark-700',
-          'bg-warm-50/80 dark:bg-dark-900/80 backdrop-blur-lg',
+          'border-b border-warm-200/60 dark:border-dark-800/60',
+          'bg-cream-50/90 dark:bg-dark-950/90 backdrop-blur-xl',
           className,
         )}
       >

@@ -1,10 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, CheckCircle2 } from 'lucide-react';
-import { Card } from '@/components/ui/Card/Card';
-import { Badge } from '@/components/ui/Badge/Badge';
-import { ProgressBar } from '@/components/ui/ProgressBar/ProgressBar';
 import { cn } from '@/lib/utils';
 
 export interface ChapterCardData {
@@ -20,76 +16,76 @@ export interface ChapterCardData {
 
 interface ChapterCardProps {
   chapter: ChapterCardData;
+  delay?: number;
 }
 
-export function ChapterCard({ chapter }: ChapterCardProps) {
-  const pct = chapter.verseCount > 0
-    ? Math.round((chapter.versesRead / chapter.verseCount) * 100)
-    : 0;
-
+export function ChapterCard({ chapter, delay = 0 }: ChapterCardProps) {
+  const pct        = chapter.verseCount > 0 ? Math.round((chapter.versesRead / chapter.verseCount) * 100) : 0;
   const isComplete = pct === 100;
   const isStarted  = pct > 0 && pct < 100;
 
   return (
-    <Link href={`/chapters/${chapter.number}`}>
-      <Card
-        variant="interactive"
-        className="p-5 h-full flex flex-col group"
-      >
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3 mb-4">
-          {/* Chapter number badge */}
-          <div className={cn(
-            'w-10 h-10 rounded-xl flex items-center justify-center font-serif text-lg font-bold flex-shrink-0',
-            isComplete ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-            isStarted  ? 'bg-saffron-100 text-saffron-700 dark:bg-saffron-900/30 dark:text-saffron-400' :
-                         'bg-warm-100 text-dark-400 dark:bg-dark-800 dark:text-dark-500',
+    <Link
+      href={`/chapters/${chapter.number}/1`}
+      className="group block bezel-card transition-all duration-500 hover:-translate-y-1 hover:shadow-xl"
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <div className="bezel-core p-6 flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <span className={cn(
+            'font-display text-4xl font-semibold leading-none tabular',
+            isComplete ? 'text-gradient' : 'text-warm-300 dark:text-dark-700',
           )}>
-            {isComplete ? <CheckCircle2 className="w-5 h-5" /> : chapter.number}
-          </div>
-
-          <Badge
-            variant={isComplete ? 'success' : isStarted ? 'warning' : 'default'}
-            size="sm"
-          >
-            {isComplete ? 'Complete' : isStarted ? `${pct}%` : `${chapter.verseCount} verses`}
-          </Badge>
-        </div>
-
-        {/* Title */}
-        <div className="mb-3 flex-1">
-          <p className="font-sanskrit text-sm text-saffron-600 dark:text-saffron-400 mb-0.5">
-            {chapter.titleSanskrit}
-          </p>
-          <h3 className="font-serif text-base text-dark-900 dark:text-white leading-snug mb-1 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors">
-            {chapter.title}
-          </h3>
-          <p className="text-xs text-dark-400 dark:text-dark-500 italic mb-3">
-            {chapter.transliteration}
-          </p>
-          <p className="text-sm text-dark-500 dark:text-dark-400 leading-relaxed line-clamp-3">
-            {chapter.summary}
-          </p>
-        </div>
-
-        {/* Progress footer */}
-        <div className="mt-4 pt-4 border-t border-warm-100 dark:border-dark-700">
-          {isStarted || isComplete ? (
-            <>
-              <div className="flex justify-between text-xs text-dark-400 mb-1.5">
-                <span>{chapter.versesRead} / {chapter.verseCount} verses</span>
-                <span className="text-saffron-600 dark:text-saffron-400 font-medium">{pct}%</span>
-              </div>
-              <ProgressBar value={pct} className="h-1.5" />
-            </>
-          ) : (
-            <div className="flex items-center gap-1.5 text-xs text-dark-400 dark:text-dark-500">
-              <BookOpen className="w-3.5 h-3.5" />
-              {chapter.verseCount} verses · Not started
-            </div>
+            {String(chapter.number).padStart(2, '0')}
+          </span>
+          {(isStarted || isComplete) && (
+            <span className={cn(
+              'text-[10px] uppercase tracking-[0.15em] font-semibold px-2.5 py-1 rounded-full',
+              isComplete
+                ? 'bg-saffron-100 dark:bg-saffron-900/30 text-saffron-700 dark:text-saffron-400'
+                : 'bg-warm-200 dark:bg-dark-800 text-dark-500 dark:text-dark-400',
+            )}>
+              {isComplete ? 'Complete' : `${pct}%`}
+            </span>
           )}
         </div>
-      </Card>
+
+        <div>
+          <p className="font-sanskrit text-base text-saffron-500 dark:text-saffron-400 mb-1 leading-relaxed">
+            {chapter.titleSanskrit}
+          </p>
+          <h3 className="font-display text-xl font-semibold text-dark-900 dark:text-cream-100 leading-tight tracking-tight group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors duration-300">
+            {chapter.title}
+          </h3>
+          <p className="text-xs text-dark-400 dark:text-dark-500 mt-0.5 italic">{chapter.transliteration}</p>
+        </div>
+
+        {chapter.summary && (
+          <p className="text-sm text-dark-500 dark:text-dark-400 leading-relaxed line-clamp-2 font-light">
+            {chapter.summary}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between pt-2 mt-auto border-t border-warm-100/80 dark:border-dark-700/80">
+          {isStarted || isComplete ? (
+            <div className="w-full">
+              <div className="flex justify-between text-xs text-dark-400 dark:text-dark-500 mb-1.5">
+                <span className="tabular">{chapter.versesRead} / {chapter.verseCount}</span>
+                <span className="font-medium text-saffron-600 dark:text-saffron-400 tabular">{pct}%</span>
+              </div>
+              <div className="h-0.5 rounded-full bg-warm-200 dark:bg-dark-700 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-saffron-400 to-gold-400 transition-all duration-700"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <span className="text-xs text-dark-400 dark:text-dark-500 tabular">{chapter.verseCount} verses</span>
+          )}
+          <svg className="w-4 h-4 text-saffron-400 opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300 ml-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+        </div>
+      </div>
     </Link>
   );
 }

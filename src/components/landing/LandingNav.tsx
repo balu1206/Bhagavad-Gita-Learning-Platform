@@ -1,121 +1,114 @@
 'use client';
 
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import { Logo } from '@/components/shared/Logo';
 
 export function LandingNav() {
+  const { data: session } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handler, { passive: true });
-    return () => window.removeEventListener('scroll', handler);
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const links = [
-    { href: '#features', label: 'Features' },
-    { href: '#journey', label: 'Journey' },
-    { href: '#testimonials', label: 'Stories' },
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
+  const navLinks = [
+    { href: '/chapters', label: 'Verses' },
+    { href: '/#features', label: 'Features' },
+    { href: '/#journey', label: 'Journey' },
   ];
 
   return (
-    <header
-      className={cn(
-        // DS-006: Backdrop blur applied always for consistent frosted-glass nav
-        'fixed top-0 left-0 right-0 z-[1030] transition-all duration-300 backdrop-blur-lg',
-        scrolled
-          ? 'bg-warm-50/80 dark:bg-dark-900/80 shadow-soft border-b border-warm-100 dark:border-dark-800'
-          : 'bg-white/40 dark:bg-dark-900/40',
-      )}
-    >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo — DS-002 / ISSUE-020: Use canonical Logo component */}
-          <Link href="/" className="focus-visible:ring-2 focus-visible:ring-saffron-500 rounded-lg focus:outline-none">
-            <Logo size="md" />
+    <>
+      {/* Floating glass pill nav */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-5 px-4">
+        <nav className={cn(
+          'glass-pill flex items-center gap-4 px-5 py-2.5 rounded-full',
+          'transition-all duration-[600ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
+          scrolled ? 'shadow-[0_8px_32px_rgba(180,100,0,0.14)]' : '',
+        )}>
+          {/* Logo */}
+          <Link href="/" className="font-display text-lg font-semibold text-dark-900 dark:text-cream-100 tracking-tight hover:text-saffron-600 dark:hover:text-saffron-400 transition-colors duration-300 mr-2">
+            GitaPath
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
-            {links.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                className="text-sm font-medium text-dark-600 hover:text-saffron-600 dark:text-dark-300 dark:hover:text-saffron-400 transition-colors"
-              >
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((l) => (
+              <Link key={l.href} href={l.href}
+                className="px-3 py-1.5 rounded-full text-sm font-medium text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-cream-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all duration-300">
                 {l.label}
-              </a>
+              </Link>
             ))}
-          </nav>
+          </div>
 
-          {/* Desktop actions */}
-          <div className="hidden md:flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-saffron-700 dark:text-saffron-300 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Get Started
-            </Link>
+          {/* CTA */}
+          <div className="hidden md:flex items-center gap-2 ml-2">
+            {session ? (
+              <Link href="/chapters" className="btn-primary !text-xs !px-4 !py-2">
+                Continue reading
+                <span className="w-5 h-5 rounded-full bg-black/10 flex items-center justify-center">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                </span>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm font-medium text-dark-500 dark:text-dark-400 hover:text-dark-900 transition-colors px-3 py-1.5">Sign in</Link>
+                <Link href="/register" className="btn-primary !text-xs !px-4 !py-2">
+                  Begin free
+                  <span className="w-5 h-5 rounded-full bg-black/10 flex items-center justify-center">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                  </span>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
-          <div className="flex md:hidden items-center gap-2">
-            <ThemeToggle />
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={menuOpen}
-              className="rounded-lg p-2 text-dark-600 hover:bg-warm-100 dark:text-dark-300 dark:hover:bg-dark-800 transition-colors"
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu" className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 ml-1">
+            <span className={cn('w-5 h-px bg-dark-700 dark:bg-cream-300 block origin-center transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]', menuOpen && 'rotate-45 translate-y-[3.5px]')} />
+            <span className={cn('w-5 h-px bg-dark-700 dark:bg-cream-300 block origin-center transition-all duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]', menuOpen && '-rotate-45 -translate-y-[3.5px]')} />
+          </button>
+        </nav>
+      </header>
+
+      {/* Mobile overlay */}
+      <div className={cn(
+        'fixed inset-0 z-40 md:hidden backdrop-blur-2xl bg-cream-50/92 dark:bg-dark-950/92',
+        'flex flex-col items-center justify-center gap-8',
+        'transition-all duration-[600ms] ease-[cubic-bezier(0.32,0.72,0,1)]',
+        menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
+      )}>
+        {navLinks.map((l, i) => (
+          <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
+            style={{ transitionDelay: menuOpen ? `${(i + 1) * 80}ms` : '0ms' }}
+            className={cn(
+              'font-display text-4xl font-medium text-dark-900 dark:text-cream-100 tracking-tight',
+              'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+              menuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+            )}>
+            {l.label}
+          </Link>
+        ))}
+        <div className="flex flex-col items-center gap-3 mt-4">
+          <Link href="/register" className="btn-primary" onClick={() => setMenuOpen(false)}>
+            Begin for free
+          </Link>
+          <Link href="/login" onClick={() => setMenuOpen(false)}
+            className="text-sm text-dark-400 hover:text-saffron-600 transition-colors">
+            Sign in instead
+          </Link>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden border-t border-warm-100 dark:border-dark-800 bg-white dark:bg-dark-900 px-4 py-4 animate-slide-down">
-          <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
-            {links.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setMenuOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium text-dark-700 hover:bg-warm-100 dark:text-dark-200 dark:hover:bg-dark-800 transition-colors"
-              >
-                {l.label}
-              </a>
-            ))}
-            <div className="mt-3 pt-3 border-t border-warm-100 dark:border-dark-800 flex flex-col gap-2">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm font-medium text-saffron-700 dark:text-saffron-300 border border-saffron-200 dark:border-saffron-800 hover:bg-saffron-50 dark:hover:bg-saffron-950/30 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm font-medium bg-gradient-to-r from-saffron-500 to-gold-500 text-white shadow-medium hover:shadow-large transition-all"
-              >
-                Get Started Free
-              </Link>
-            </div>
-          </nav>
-        </div>
-      )}
-    </header>
+    </>
   );
 }

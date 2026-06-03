@@ -22,8 +22,8 @@ export function BottomNav() {
       className={cn(
         // DS-007: Show bottom nav below the lg breakpoint (1024px) per spec
         'lg:hidden fixed bottom-0 left-0 right-0 z-[1030]',
-        'flex border-t border-warm-100 dark:border-dark-700',
-        'bg-warm-50/80 dark:bg-dark-900/80 backdrop-blur-lg',
+        'flex border-t border-warm-200/60 dark:border-dark-800/60',
+        'bg-cream-50/90 dark:bg-dark-950/90 backdrop-blur-xl',
         'safe-area-inset-bottom',
       )}
     >
